@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
-import { AlertCircle, Calendar, CheckCircle2, Clock, FileText, FolderOpen, MessageSquare, Users, Download, Info, Trash2, Settings } from "lucide-react"
+import { AlertCircle, Calendar, CheckCircle2, Clock, FileText, FolderOpen, MessageSquare, Users, Download, Info, Trash2, Settings, Upload } from "lucide-react"
 import { ProjectTimeline } from "./project-timeline"
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog"
 import { RfpDocument } from "@/types/api"
@@ -214,6 +214,14 @@ export function ProjectOverview({ onViewQuestions, projectId, orgId }: ProjectOv
         </div>
         
         <div className="flex gap-2">
+          <Button 
+            variant="default" 
+            size="sm"
+            onClick={() => router.push(`/upload?projectId=${projectId}`)}
+          >
+            <Upload className="h-4 w-4 mr-2" />
+            Upload RFP Document
+          </Button>
 
           <Button 
             variant="outline" 

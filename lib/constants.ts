@@ -1,1 +1,1 @@
-export const DEFAULT_LANGUAGE_MODEL = "gpt-4o-mini";
+export const DEFAULT_LANGUAGE_MODEL = "gemini-2.5-flash";

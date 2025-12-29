@@ -17,7 +17,7 @@ export const QuestionSchema = z.object({
 export const SectionSchema = z.object({
   id: z.string(),
   title: z.string(),
-  description: z.string().optional(),
+  description: z.string().nullable().optional(),
   questions: z.array(QuestionSchema),
 });
 

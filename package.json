@@ -7,10 +7,12 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "test": "vitest --run",
+    "test:watch": "vitest"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^1.3.22",
+    "@google/generative-ai": "^0.21.0",
     "@hookform/resolvers": "^5.0.1",
     "@prisma/client": "^6.7.0",
     "@radix-ui/react-accordion": "^1.2.8",
@@ -51,12 +53,13 @@
     "dotenv": "^16.5.0",
     "embla-carousel-react": "^8.6.0",
     "framer-motion": "^12.15.0",
+    "global-agent": "^3.0.0",
+    "https-proxy-agent": "^7.0.6",
     "input-otp": "^1.4.2",
     "llamaindex": "^0.10.3",
     "lucide-react": "^0.507.0",
     "next": "15.3.8",
     "next-themes": "^0.4.6",
-    "openai": "^4.97.0",
     "prisma": "^6.7.0",
     "react": "^19.0.0",
     "react-day-picker": "8.10.1",
@@ -69,6 +72,7 @@
     "swr": "^2.3.3",
     "tailwind-merge": "^3.2.0",
     "tailwindcss-animate": "^1.0.7",
+    "undici": "^7.16.0",
     "uuid": "^11.1.0",
     "vaul": "^1.1.2",
     "zod": "^3.24.3"
@@ -82,7 +86,8 @@
     "@types/uuid": "^10.0.0",
     "tailwindcss": "^4",
     "tw-animate-css": "^1.2.9",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.0.16"
   },
   "packageManager": "pnpm@10.10.0+sha512.d615db246fe70f25dcfea6d8d73dee782ce23e2245e3c4f6f888249fb568149318637dca73c2c5c8ef2a4ca0d5657fb9567188bfab47f566d1ee6ce987815c39"
 }

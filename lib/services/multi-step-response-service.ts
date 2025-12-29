@@ -14,7 +14,9 @@ import { LlamaIndexService } from '@/lib/llama-index-service';
 import { generateId } from 'ai';
 import { db } from '@/lib/db';
 import { organizationService } from '@/lib/organization-service';
-import OpenAI from 'openai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import { DEFAULT_LANGUAGE_MODEL } from '@/lib/constants';
+import { extractJsonFromResponse } from '@/lib/utils/json-parser';
 
 /**
  * Multi-step response generation service implementation with AI-powered reasoning
@@ -22,7 +24,8 @@ import OpenAI from 'openai';
 export class MultiStepResponseService implements IMultiStepResponseService {
   private config: MultiStepConfig;
   private llamaIndexService: LlamaIndexService;
-  private openai: OpenAI;
+  private gemini: GoogleGenerativeAI;
+  private model: ReturnType<GoogleGenerativeAI['getGenerativeModel']>;
 
   constructor(config: Partial<MultiStepConfig> = {}) {
     this.config = {
@@ -37,10 +40,14 @@ export class MultiStepResponseService implements IMultiStepResponseService {
     // Initialize the LlamaIndex service (will be reconfigured per request)
     this.llamaIndexService = new LlamaIndexService();
     
-    // Initialize OpenAI for AI-powered reasoning
-    this.openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
+    // Initialize Gemini for AI-powered reasoning
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error('Gemini API key is not configured. Please set the GEMINI_API_KEY environment variable.');
+    }
+    
+    this.gemini = new GoogleGenerativeAI(apiKey);
+    this.model = this.gemini.getGenerativeModel({ model: DEFAULT_LANGUAGE_MODEL });
   }
 
   /**
@@ -140,7 +147,7 @@ export class MultiStepResponseService implements IMultiStepResponseService {
           textContent: this.getSourceTextContent(source.id, searchResults),
         })),
         metadata: {
-          modelUsed: 'gpt-4o',
+          modelUsed: DEFAULT_LANGUAGE_MODEL,
           tokensUsed: this.calculateActualTokens(steps),
           stepsCompleted: steps.filter(s => s.status === 'completed').length,
           processingStartTime: startTime,
@@ -224,26 +231,6 @@ export class MultiStepResponseService implements IMultiStepResponseService {
   }
 
   /**
-   * Helper function to extract JSON from OpenAI responses that may be wrapped in markdown code blocks
-   */
-  private extractJsonFromResponse(content: string): any {
-    if (!content) {
-      throw new Error('No content to parse');
-    }
-
-    // Check if content is wrapped in markdown code blocks
-    const jsonBlockMatch = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-    if (jsonBlockMatch) {
-      // Extract JSON from code block
-      const jsonContent = jsonBlockMatch[1].trim();
-      return JSON.parse(jsonContent);
-    }
-
-    // If not in code blocks, try parsing directly
-    return JSON.parse(content.trim());
-  }
-
-  /**
    * Step 1: AI-powered question analysis
    */
   private async analyzeQuestionWithAI(question: string): Promise<QuestionAnalysis> {
@@ -268,22 +255,25 @@ Focus on:
 Return only valid JSON.`;
 
     try {
-      const response = await this.openai.chat.completions.create({
-        model: 'gpt-4o',
-        messages: [
-          { role: 'system', content: 'You are an expert at analyzing RFP questions and determining optimal search strategies. Always respond with valid JSON only.' },
-          { role: 'user', content: prompt }
-        ],
-        temperature: 0.1,
-        max_tokens: 1000,
+      const systemPrompt = 'You are an expert at analyzing RFP questions and determining optimal search strategies. Always respond with valid JSON only.';
+      
+      const result = await this.model.generateContent({
+        contents: [{ 
+          role: 'user', 
+          parts: [{ text: `${systemPrompt}\n\n${prompt}` }] 
+        }],
+        generationConfig: {
+          temperature: 0.1,
+          maxOutputTokens: 1000,
+        },
       });
 
-      const content = response.choices[0]?.message?.content;
+      const content = result.response.text();
       if (!content) {
         throw new Error('No response from AI');
       }
 
-      return this.extractJsonFromResponse(content);
+      return extractJsonFromResponse(content);
     } catch (error) {
       console.error('AI question analysis failed:', error);
       // Fallback to basic analysis
@@ -422,34 +412,34 @@ IMPORTANT GUIDELINES:
 Return only valid JSON.`;
 
     try {
-      const response = await this.openai.chat.completions.create({
-        model: 'gpt-4o',
-        messages: [
-          { 
-            role: 'system', 
-            content: 'You are an expert RFP analyst who extracts meaningful, relevant information from documents. Focus on answering the specific question, not listing raw data. Always respond with valid JSON only.' 
-          },
-          { role: 'user', content: prompt }
-        ],
-        temperature: 0.2,
-        max_tokens: 2500,
+      const systemPrompt = 'You are an expert RFP analyst who extracts meaningful, relevant information from documents. Focus on answering the specific question, not listing raw data. Always respond with valid JSON only.';
+      
+      const result = await this.model.generateContent({
+        contents: [{ 
+          role: 'user', 
+          parts: [{ text: `${systemPrompt}\n\n${prompt}` }] 
+        }],
+        generationConfig: {
+          temperature: 0.2,
+          maxOutputTokens: 2500,
+        },
       });
 
-      const content = response.choices[0]?.message?.content;
+      const content = result.response.text();
       if (!content) {
         throw new Error('No response from AI');
       }
 
-      const result = this.extractJsonFromResponse(content);
+      const result2 = extractJsonFromResponse(content);
       
       // Validate and clean the extracted facts
-      if (result.extractedFacts && Array.isArray(result.extractedFacts)) {
-        result.extractedFacts = result.extractedFacts.filter((fact: any) => 
+      if (result2.extractedFacts && Array.isArray(result2.extractedFacts)) {
+        result2.extractedFacts = result2.extractedFacts.filter((fact: any) => 
           fact.fact && typeof fact.fact === 'string' && fact.fact.length > 20
         );
       }
 
-      return result;
+      return result2;
     } catch (error) {
       console.error('AI information extraction failed:', error);
       // Fallback to improved basic extraction
@@ -550,34 +540,34 @@ The response should read like a professional RFP section that could be directly 
 Return only valid JSON.`;
 
     try {
-      console.log('Calling OpenAI for response synthesis...');
+      console.log('Calling Gemini for response synthesis...');
       console.log('Prompt length:', prompt.length);
       
-      const response = await this.openai.chat.completions.create({
-        model: 'gpt-4o',
-        messages: [
-          { 
-            role: 'system', 
-            content: 'You are an expert RFP response writer who creates professional, structured responses that directly address client questions. Always respond with valid JSON only.' 
-          },
-          { role: 'user', content: prompt }
-        ],
-        temperature: 0.3,
-        max_tokens: 3000,
+      const systemPrompt = 'You are an expert RFP response writer who creates professional, structured responses that directly address client questions. Always respond with valid JSON only.';
+      
+      const result = await this.model.generateContent({
+        contents: [{ 
+          role: 'user', 
+          parts: [{ text: `${systemPrompt}\n\n${prompt}` }] 
+        }],
+        generationConfig: {
+          temperature: 0.3,
+          maxOutputTokens: 3000,
+        },
       });
 
-      const content = response.choices[0]?.message?.content;
+      const content = result.response.text();
       if (!content) {
-        console.error('No content in OpenAI response');
+        console.error('No content in Gemini response');
         throw new Error('No response from AI');
       }
 
-      console.log('OpenAI response received, parsing JSON...');
+      console.log('Gemini response received, parsing JSON...');
       console.log('Response preview:', content.substring(0, 200));
 
-      let result;
+      let parsedResult;
       try {
-        result = this.extractJsonFromResponse(content);
+        parsedResult = extractJsonFromResponse(content);
         console.log('JSON parsed successfully');
       } catch (parseError) {
         console.error('JSON parse error:', parseError);
@@ -586,9 +576,9 @@ Return only valid JSON.`;
       }
       
       // Ensure sources are properly mapped
-      if (!result.sources || !Array.isArray(result.sources)) {
+      if (!parsedResult.sources || !Array.isArray(parsedResult.sources)) {
         console.log('Fixing sources array...');
-        result.sources = extraction.extractedFacts.map((fact, index) => ({
+        parsedResult.sources = extraction.extractedFacts.map((fact, index) => ({
           id: (index + 1).toString(),
           relevance: fact.confidence,
           usedInResponse: true,
@@ -596,10 +586,10 @@ Return only valid JSON.`;
       }
 
       console.log('AI synthesis completed successfully');
-      console.log('Final confidence:', result.confidence);
-      console.log('Response length:', result.mainResponse?.length);
+      console.log('Final confidence:', parsedResult.confidence);
+      console.log('Response length:', parsedResult.mainResponse?.length);
 
-      return result;
+      return parsedResult;
     } catch (error: unknown) {
       console.error('AI response synthesis failed:', error);
       if (error instanceof Error) {
@@ -611,7 +601,7 @@ Return only valid JSON.`;
       if (error instanceof Error && error.message?.includes('JSON parse')) {
         console.log('JSON parsing failed, trying fallback...');
       } else {
-        console.log('OpenAI API call failed, trying fallback...');
+        console.log('Gemini API call failed, trying fallback...');
       }
       
       // Fallback to improved synthesis
@@ -740,22 +730,25 @@ Consider:
 Return only valid JSON.`;
 
     try {
-      const response = await this.openai.chat.completions.create({
-        model: 'gpt-4o',
-        messages: [
-          { role: 'system', content: 'You are an expert at validating RFP responses for quality and completeness. Always respond with valid JSON only.' },
-          { role: 'user', content: prompt }
-        ],
-        temperature: 0.1,
-        max_tokens: 1000,
+      const systemPrompt = 'You are an expert at validating RFP responses for quality and completeness. Always respond with valid JSON only.';
+      
+      const result = await this.model.generateContent({
+        contents: [{ 
+          role: 'user', 
+          parts: [{ text: `${systemPrompt}\n\n${prompt}` }] 
+        }],
+        generationConfig: {
+          temperature: 0.1,
+          maxOutputTokens: 1000,
+        },
       });
 
-      const content = response.choices[0]?.message?.content;
+      const content = result.response.text();
       if (!content) {
         throw new Error('No response from AI');
       }
 
-      return this.extractJsonFromResponse(content);
+      return extractJsonFromResponse(content);
     } catch (error) {
       console.error('AI response validation failed:', error);
       // Fallback to basic validation

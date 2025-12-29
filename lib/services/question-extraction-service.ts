@@ -1,6 +1,6 @@
 import { IQuestionExtractionService } from '@/lib/interfaces/ai-service';
 import { ExtractQuestionsRequest, ExtractedQuestions, ExtractQuestionsResponse } from '@/lib/validators/extract-questions';
-import { openAIQuestionExtractor } from './openai-question-extractor';
+import { geminiQuestionExtractor } from './gemini-question-extractor';
 import { projectService } from '@/lib/project-service';
 import { DatabaseError, AIServiceError } from '@/lib/errors/api-errors';
 
@@ -51,7 +51,7 @@ export class QuestionExtractionService implements IQuestionExtractionService {
    */
   private async extractQuestions(content: string, documentName: string): Promise<ExtractedQuestions> {
     try {
-      return await openAIQuestionExtractor.extractQuestions(content, documentName);
+      return await geminiQuestionExtractor.extractQuestions(content, documentName);
     } catch (error) {
       throw new AIServiceError(`AI question extraction failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
@@ -62,7 +62,7 @@ export class QuestionExtractionService implements IQuestionExtractionService {
    */
   private async generateSummary(content: string, documentName: string): Promise<string> {
     try {
-      return await openAIQuestionExtractor.generateSummary(content, documentName);
+      return await geminiQuestionExtractor.generateSummary(content, documentName);
     } catch (error) {
       throw new AIServiceError(`AI summary generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
@@ -73,7 +73,7 @@ export class QuestionExtractionService implements IQuestionExtractionService {
    */
   private async extractEligibility(content: string, documentName: string): Promise<string[]> {
     try {
-      return await openAIQuestionExtractor.extractEligibility(content, documentName);
+      return await geminiQuestionExtractor.extractEligibility(content, documentName);
     } catch (error) {
       throw new AIServiceError(`AI eligibility extraction failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }

@@ -34,7 +34,7 @@ AutoRFP is an intelligent platform that automates RFP (Request for Proposal) res
 - **Styling**: Tailwind CSS, Radix UI Components
 - **Authentication**: Supabase Auth (Magic Link)
 - **Database**: PostgreSQL with Prisma ORM
-- **AI & ML**: OpenAI GPT-4o, LlamaIndex, LlamaCloud
+- **AI & ML**: Google Gemini, LlamaIndex, LlamaCloud
 - **Deployment**: Vercel (recommended)
 - **Package Manager**: pnpm
 
@@ -46,7 +46,7 @@ Before setting up AutoRFP, ensure you have:
 - **pnpm** 8.x or later
 - **PostgreSQL** database (local or cloud)
 - **Supabase** account and project
-- **OpenAI** API account with credits
+- **Google AI Studio** account for Gemini API access
 - **LlamaCloud** account (optional but recommended)
 
 ## 🚀 Getting Started
@@ -77,8 +77,8 @@ DIRECT_URL="postgresql://username:password@localhost:5432/auto_rfp"
 NEXT_PUBLIC_SUPABASE_URL="your-supabase-project-url"
 NEXT_PUBLIC_SUPABASE_ANON_KEY="your-supabase-anon-key"
 
-# OpenAI API
-OPENAI_API_KEY="your-openai-api-key"
+# Gemini API
+GEMINI_API_KEY="your-gemini-api-key"
 
 # LlamaCloud
 LLAMACLOUD_API_KEY="your-llamacloud-api-key"
@@ -125,12 +125,12 @@ pnpm prisma db seed
 3. Configure authentication providers in **Authentication > Providers**
 4. Set up email templates in **Authentication > Email Templates**
 
-### 6. OpenAI Setup
+### 6. Gemini Setup
 
-1. Create an account at [platform.openai.com][]
-2. Generate an API key in **API Keys** section
-3. Add credits to your account
-4. Copy the API key to `OPENAI_API_KEY`
+1. Go to [Google AI Studio][aistudio.google.com]
+2. Sign in with your Google account
+3. Click **Get API key** and create a new API key
+4. Copy the API key to `GEMINI_API_KEY`
 
 ### 7. LlamaCloud Setup (Optional)
 
@@ -203,7 +203,7 @@ The application uses a multi-tenant architecture with the following key models:
 ### AI Processing Pipeline
 
 1. **Document Upload**: Users upload RFP documents
-2. **Question Extraction**: OpenAI extracts structured questions
+2. **Question Extraction**: Gemini extracts structured questions
 3. **Document Indexing**: LlamaCloud indexes documents for search
 4. **Response Generation**: Multi-step AI process generates responses
 5. **Source Attribution**: Responses include relevant source citations
@@ -218,7 +218,7 @@ DATABASE_URL="your-production-database-url"
 DIRECT_URL="your-production-database-direct-url"
 NEXT_PUBLIC_SUPABASE_URL="your-supabase-url"
 NEXT_PUBLIC_SUPABASE_ANON_KEY="your-supabase-anon-key"
-OPENAI_API_KEY="your-openai-api-key"
+GEMINI_API_KEY="your-gemini-api-key"
 LLAMACLOUD_API_KEY="your-llamacloud-api-key"
 # LLAMACLOUD_API_KEY_INTERNAL="your-internal-llamacloud-api-key"  # Optional: for internal users
 # INTERNAL_EMAIL_DOMAIN="@yourdomain.com"  # Optional: defaults to @runllama.ai
@@ -284,14 +284,14 @@ pnpm prisma migrate reset
 - Ensure redirect URLs are configured correctly
 
 **AI Processing Issues**
-- Verify OpenAI API key and credits
+- Verify Gemini API key is valid
 - Check LlamaCloud API key if using document indexing
 - Review API rate limits
 
 **Environment Variables**
 ```bash
 # Check if all required variables are set
-node -e "console.log(process.env)" | grep -E "(DATABASE_URL|SUPABASE|OPENAI|LLAMACLOUD)"
+node -e "console.log(process.env)" | grep -E "(DATABASE_URL|SUPABASE|GEMINI|LLAMACLOUD)"
 ```
 
 ## 🤝 Contributing
@@ -336,7 +336,7 @@ This project is licensed under the MIT License - see the [LICENSE][] file for de
 ## 🙏 Acknowledgments
 
 - **LlamaIndex** for powerful document indexing and retrieval
-- **OpenAI** for advanced language model capabilities
+- **Google** for Gemini language model capabilities
 - **Supabase** for authentication and database infrastructure
 - **Vercel** for Next.js framework and deployment platform
 - **Radix UI** for accessible component primitives
@@ -349,11 +349,11 @@ This project is licensed under the MIT License - see the [LICENSE][] file for de
 
 ---
 
-Built with ❤️ using Next.js, LlamaIndex, and OpenAI
+Built with ❤️ using Next.js, LlamaIndex, and Google Gemini
 
 [LICENSE]: ./LICENSE
+[aistudio.google.com]: https://aistudio.google.com
 [cloud.llamaindex.ai]: https://cloud.llamaindex.ai
 [http://localhost:3000]: http://localhost:3000
-[platform.openai.com]: https://platform.openai.com
 [rfp-sample-file]: https://qluspotebpidccpfbdho.supabase.co/storage/v1/object/public/sample-files//RFP%20-%20Launch%20Services%20for%20Medium-Lift%20Payloads.pdf
 [supabase.com]: https://supabase.com

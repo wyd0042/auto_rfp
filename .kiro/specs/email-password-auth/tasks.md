@@ -1,0 +1,110 @@
+# Implementation Plan
+
+- [ ] 1. Create validation utilities for authentication
+  - [ ] 1.1 Create auth validation service with password and email validation functions
+    - Create `lib/services/auth-validation.ts` with `validatePassword()` and `validateEmail()` functions
+    - Password validation: minimum 8 characters
+    - Email validation: valid email format using regex
+    - Return structured validation result with success/error message
+    - _Requirements: 1.2, 3.4_
+  - [ ]* 1.2 Write property test for password validation
+    - **Property 1: Password length validation rejects short passwords**
+    - **Validates: Requirements 1.2, 3.4**
+  - [ ]* 1.3 Write property test for email validation
+    - **Property 4: Valid email format validation**
+    - **Validates: Requirements 1.1, 2.1**
+
+- [ ] 2. Implement server actions for email/password authentication
+  - [ ] 2.1 Add signUpWithPassword server action
+    - Add to `app/login/actions.ts`
+    - Validate email and password before calling Supabase
+    - Call `supabase.auth.signUp()` with email and password
+    - Handle email confirmation redirect URL
+    - Return structured result with success/error
+    - _Requirements: 1.1, 1.2, 1.3_
+  - [ ] 2.2 Add signInWithPassword server action
+    - Add to `app/login/actions.ts`
+    - Validate email and password before calling Supabase
+    - Call `supabase.auth.signInWithPassword()`
+    - Handle unconfirmed email error case
+    - Redirect to /organizations on success
+    - _Requirements: 2.1, 2.2, 2.3_
+  - [ ] 2.3 Add requestPasswordReset server action
+    - Add to `app/login/actions.ts`
+    - Validate email format
+    - Call `supabase.auth.resetPasswordForEmail()`
+    - Return success message regardless of email existence (security)
+    - _Requirements: 3.1_
+
+- [ ] 3. Update login page with email/password option
+  - [ ] 3.1 Add state management for auth method toggle
+    - Add state for `authMethod: 'password' | 'magic-link'`
+    - Add state for `isSignUp` boolean
+    - Add state for `password` field
+    - Add state for `error` and `loading`
+    - _Requirements: 4.1, 4.2, 4.3_
+  - [ ] 3.2 Create tabbed interface for auth methods
+    - Add tabs/buttons to switch between "Email & Password" and "Magic Link"
+    - Preserve email when switching methods
+    - Show password field only for email/password method
+    - _Requirements: 4.1, 4.2, 4.3, 4.4_
+  - [ ] 3.3 Add sign up / sign in toggle for password auth
+    - Add link to toggle between "Sign In" and "Create Account"
+    - Update form submission to call appropriate action
+    - Show "Forgot password?" link for sign in mode
+    - _Requirements: 1.1, 2.1_
+  - [ ]* 3.4 Write property test for email preservation across auth method toggle
+    - **Property 3: Email preservation across auth method toggle**
+    - **Validates: Requirements 4.4**
+
+- [ ] 4. Create password reset flow
+  - [ ] 4.1 Add forgot password link and form to login page
+    - Add "Forgot password?" link below sign in form
+    - Create forgot password form state
+    - Submit calls requestPasswordReset action
+    - Show success message after submission
+    - _Requirements: 3.1_
+  - [ ] 4.2 Create reset password page
+    - Create `app/login/reset-password/page.tsx`
+    - Handle code from URL search params
+    - Display new password form with validation
+    - Call `supabase.auth.updateUser()` with new password
+    - Redirect to login on success
+    - _Requirements: 3.2, 3.3, 3.4_
+
+- [ ] 5. Update auth callback to handle password reset
+  - [ ] 5.1 Update auth callback route for password reset flow
+    - Modify `app/auth/callback/route.ts`
+    - Detect password reset type from URL params
+    - Redirect to reset password page with code
+    - _Requirements: 3.2_
+
+- [ ] 6. Add error handling and user feedback
+  - [ ] 6.1 Implement error display in login form
+    - Add error alert component above form
+    - Display inline validation errors below inputs
+    - Clear errors when user starts typing
+    - _Requirements: 1.2, 1.3, 2.2, 2.3_
+  - [ ] 6.2 Add loading states to form submissions
+    - Disable form during submission
+    - Show spinner on submit button
+    - _Requirements: 2.1_
+
+- [ ] 7. Checkpoint - Ensure all tests pass
+  - Ensure all tests pass, ask the user if questions arise.
+
+- [ ]* 8. Write unit tests for server actions
+  - [ ]* 8.1 Write unit tests for signUpWithPassword action
+    - Test successful signup returns success
+    - Test validation errors are returned
+    - _Requirements: 1.1, 1.2_
+  - [ ]* 8.2 Write unit tests for signInWithPassword action
+    - Test successful signin redirects
+    - Test invalid credentials return error
+    - _Requirements: 2.1, 2.2_
+  - [ ]* 8.3 Write property test for invalid credentials rejection
+    - **Property 2: Invalid credentials are rejected**
+    - **Validates: Requirements 2.2**
+
+- [ ] 9. Final Checkpoint - Ensure all tests pass
+  - Ensure all tests pass, ask the user if questions arise.

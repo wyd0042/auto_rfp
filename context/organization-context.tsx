@@ -62,6 +62,10 @@ export function OrganizationProvider({ children }: OrganizationProviderProps) {
   const fetchOrganizations = async () => {
     try {
       const response = await fetch("/api/organizations");
+      if (!response.ok) {
+        // Don't try to parse JSON if response is not OK (e.g., redirect to login)
+        return;
+      }
       const data = await response.json();
       if (data.success) {
         setOrganizations(data.data);
@@ -77,6 +81,10 @@ export function OrganizationProvider({ children }: OrganizationProviderProps) {
       fetchingProjectsForOrgRef.current = organizationId;
       
       const response = await fetch(`/api/projects?organizationId=${organizationId}`);
+      if (!response.ok) {
+        // Don't try to parse JSON if response is not OK (e.g., redirect to login)
+        return;
+      }
       const data = await response.json();
       if (data.success) {
         // Only set projects if we're still fetching for the same organization
@@ -93,7 +101,8 @@ export function OrganizationProvider({ children }: OrganizationProviderProps) {
     try {
       const response = await fetch(`/api/projects/${projectId}`);
       if (!response.ok) {
-        throw new Error(`Failed to fetch project: ${response.statusText}`);
+        // Don't try to parse JSON if response is not OK (e.g., redirect to login)
+        return null;
       }
       const project = await response.json();
       return project;
@@ -179,13 +188,18 @@ export function OrganizationProvider({ children }: OrganizationProviderProps) {
     initializeFromUrl();
   }, [pathname, initialLoad]);
 
-  // Fetch organizations on mount
+  // Fetch organizations on mount (skip on auth pages)
   useEffect(() => {
     const loadData = async () => {
+      // Skip fetching on login/auth pages
+      if (pathname.startsWith('/login') || pathname.startsWith('/auth')) {
+        setLoading(false);
+        return;
+      }
       await fetchOrganizations();
     };
     loadData();
-  }, []);
+  }, [pathname]);
 
   // Auto-select first organization only if no manual selection has been made
   useEffect(() => {
