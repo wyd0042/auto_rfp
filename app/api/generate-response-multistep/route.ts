@@ -1,5 +1,5 @@
-import { openai } from '@ai-sdk/openai';
-import { streamText } from 'ai';
+import { google } from '@ai-sdk/google';
+import { streamText, stepCountIs } from 'ai';
 import { z } from 'zod';
 import { NextRequest } from 'next/server';
 import { organizationService } from '@/lib/organization-service';
@@ -11,10 +11,10 @@ export async function POST(request: NextRequest) {
   console.log('🎯 Multi-step API route called');
   
   try {
-    // Check OpenAI API key
-    if (!process.env.OPENAI_API_KEY) {
-      console.log('❌ OPENAI_API_KEY not configured');
-      return new Response('OpenAI API key not configured', { status: 500 });
+    // Check Gemini API key
+    if (!process.env.GEMINI_API_KEY) {
+      console.log('❌ GEMINI_API_KEY not configured');
+      return new Response('Gemini API key not configured', { status: 500 });
     }
     
     const body = await request.json();
@@ -92,9 +92,8 @@ export async function POST(request: NextRequest) {
       return new Response('Access denied', { status: 403 });
     }
 
-    // Search documents using LlamaIndex
-    console.log('🔍 Searching documents with LlamaIndex...');
-    let documentContext = '';
+    // Search documents using LlamaIndex - retrieve raw documents, don't generate response
+    console.log('🔍 Retrieving documents with LlamaIndex...');
     let documentSources: any[] = [];
     
     if (project.organization.llamaCloudProjectId && project.organization.llamaCloudConnectedAt) {
@@ -114,7 +113,6 @@ export async function POST(request: NextRequest) {
         
         if (indexNames.length === 0) {
           console.log('⚠️ No valid index names found after converting IDs');
-          documentContext = 'No valid document indexes found.';
         } else {
           console.log(`📋 Using index names: ${indexNames.join(', ')}`);
           
@@ -125,31 +123,34 @@ export async function POST(request: NextRequest) {
             indexNames: indexNames,
           });
 
-          console.log('📋 Calling LlamaIndex with question:', question);
-          const searchResult = await llamaIndexService.generateResponse(question);
-          documentContext = searchResult.response;
-          documentSources = searchResult.sources || [];
+          console.log('📋 Retrieving documents for question:', question);
+          // Use retrieveDocuments to get raw document content without pre-processing
+          documentSources = await llamaIndexService.retrieveDocuments(question);
           
-          console.log(`✅ LlamaIndex search completed:`, {
+          console.log(`✅ Document retrieval completed:`, {
             sourcesFound: documentSources.length,
-            contextLength: documentContext.length,
             sources: documentSources.map(s => ({
               id: s.id,
               fileName: s.fileName,
               pageNumber: s.pageNumber,
-              relevance: s.relevance
+              relevance: s.relevance,
+              contentLength: s.textContent?.length || 0
             }))
           });
         }
       } catch (error) {
-        console.error('⚠️ Document search failed:', error);
-        documentContext = 'No relevant documents found.';
+        console.error('⚠️ Document retrieval failed:', error);
       }
     } else {
       console.log('⚠️ No LlamaCloud API key found in organization');
     }
 
-    console.log('🚀 Starting OpenAI streaming...');
+    console.log('🚀 Starting Gemini streaming...');
+
+    // Build document context from raw source content
+    const documentContext = documentSources
+      .map((source, index) => `[Source ${index + 1}] ${source.fileName} (Page ${source.pageNumber || 'N/A'}):\n${source.textContent || 'No content available'}`)
+      .join('\n\n---\n\n');
 
     // Create system message for RFP-focused reasoning with document context
     const systemMessage = `You are an expert RFP (Request for Proposal) analyst and response specialist. 
@@ -161,47 +162,33 @@ export async function POST(request: NextRequest) {
     
     The 5 reasoning steps should cover:
     1. Analyze what type of information is being requested
-    2. Search through available documents for relevant information  
+    2. Search through the document content below for relevant information  
     3. Extract and synthesize key facts from the documents
     4. Create a professional RFP response structure
     5. Validate the response for completeness and accuracy
     
-    DOCUMENT CONTEXT FROM ORGANIZATION'S KNOWLEDGE BASE:
-    ${documentContext}
+    DOCUMENT CONTENT FROM ORGANIZATION'S KNOWLEDGE BASE:
+    ${documentContext || 'No documents available.'}
     
-    AVAILABLE SOURCES FOR CITATION:
-    ${documentSources.map((source, index) => 
-      `Source ${index + 1}: "${source.fileName}" (Page: ${source.pageNumber || 'N/A'}) - Relevance: ${source.relevance || 'N/A'}%
-      Content Preview: ${source.textContent?.substring(0, 300) || 'No content preview available'}...`
-    ).join('\n\n')}
+    CRITICAL INSTRUCTIONS:
+    - Base your response ONLY on the document content provided above
+    - You MUST reference specific sources using [Source X] format where X is the source number
+    - If the information is not in the documents, clearly state that
+    - Do NOT make up information that is not in the documents
     
-    CRITICAL CITATION REQUIREMENTS:
-    - You MUST reference specific sources in your reasoning steps using [Source X] format where X is the source number
-    - You MUST include multiple [Source X] citations in your final response
-    - When you mention any fact, claim, or data point, cite the relevant source immediately
-    - Example: "Our organization provides services globally [Source 1] with specific capabilities in telecommunications [Source 2]."
-    
-    After completing ALL 5 reasoning steps, you MUST provide a detailed final response as plain text. Do not use the addReasoningStep tool for the final response - just write your comprehensive answer directly.
+    After completing ALL 5 reasoning steps, you MUST provide a detailed final response as plain text.
     
     Guidelines for final response:
-    - Start with a clear heading and structure your response professionally using markdown
-    - Use proper markdown formatting: ## for main headings, ### for subheadings, **bold** for emphasis, - for bullet points
-    - MANDATORY: Include [Source X] citations throughout your response whenever referencing information
-    - Focus on providing specific, actionable information based on the retrieved documents
-    - Maintain a professional, confident tone appropriate for business proposals
-    - Address any limitations or gaps in available information
-    - Structure responses with clear markdown headings and bullet points when appropriate
-    - Always provide next steps or recommendations when relevant
-    - Format your response as clean, readable markdown that will be properly rendered
-    
-    Remember: Every factual claim in your final response should include a [Source X] citation!
+    - Use proper markdown formatting: ## for main headings, ### for subheadings, **bold** for emphasis
+    - Include [Source X] citations throughout your response
+    - Be specific and quote relevant information from the documents
+    - If information is not available, clearly state what is missing
     
     Question: "${question}"
-    Available document indexes: ${indexIds.length} indexes selected
-    Retrieved sources: ${documentSources.length} documents found for citation`;
+    Retrieved sources: ${documentSources.length} documents found`;
 
     const result = streamText({
-      model: openai('gpt-4o'),
+      model: google('gemini-2.5-flash'),
       system: systemMessage,
       messages: [
         {
@@ -209,12 +196,11 @@ export async function POST(request: NextRequest) {
           content: question,
         },
       ],
-      maxSteps: 10, // Allow more steps to include final response
-      experimental_toolCallStreaming: true,
+      stopWhen: stepCountIs(10), // Allow more steps to include final response
       tools: {
         addReasoningStep: {
           description: 'Add a step to the RFP analysis and response generation process. Use this exactly 5 times, then provide your final answer as regular text.',
-          parameters: z.object({
+          inputSchema: z.object({
             title: z.string().describe('The title of the reasoning step (e.g., "Analyzing Question Requirements", "Searching Documents")'),
             content: z.string().describe('The detailed content of the reasoning step. Include specific findings, analysis, and reasoning. Reference sources using [Source X] format.'),
             nextStep: z.enum(['continue', 'finalAnswer']).describe('Use "continue" for steps 1-4, and "finalAnswer" for step 5. After step 5, provide your final response as regular text.'),
@@ -225,7 +211,54 @@ export async function POST(request: NextRequest) {
     });
 
     console.log('📡 Returning streaming response...');
-    return result.toDataStreamResponse();
+    
+    // Use a custom streaming response that includes tool calls
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      async start(controller) {
+        try {
+          for await (const part of result.fullStream) {
+            if (part.type === 'tool-call') {
+              // Send tool call as JSON
+              const toolData = {
+                type: 'tool-call',
+                toolName: part.toolName,
+                args: (part as any).input || (part as any).args,
+              };
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify(toolData)}\n\n`));
+            } else if (part.type === 'tool-result') {
+              // Send tool result as JSON
+              const resultData = {
+                type: 'tool-result',
+                toolName: part.toolName,
+                result: (part as any).result || (part as any).output,
+              };
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify(resultData)}\n\n`));
+            } else if (part.type === 'text-delta') {
+              // Send text delta
+              const textData = {
+                type: 'text-delta',
+                text: (part as any).textDelta || (part as any).text,
+              };
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify(textData)}\n\n`));
+            }
+          }
+          controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+          controller.close();
+        } catch (error) {
+          console.error('Stream error:', error);
+          controller.error(error);
+        }
+      },
+    });
+
+    return new Response(stream, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+      },
+    });
   } catch (error) {
     console.error('💥 Multi-step streaming failed:', error);
     return new Response('Internal server error', { status: 500 });

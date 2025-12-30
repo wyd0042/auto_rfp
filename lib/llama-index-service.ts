@@ -124,11 +124,26 @@ export class LlamaIndexService implements ILlamaIndexService {
     // Retrieve relevant documents
     const nodes = await retriever.retrieve(question);
     
+    // Debug: log node structure
+    console.log('📚 Retrieved nodes:', nodes.length);
+    if (nodes.length > 0) {
+      const firstNode = nodes[0] as any;
+      console.log('📄 First node structure:', {
+        keys: Object.keys(firstNode),
+        nodeKeys: firstNode.node ? Object.keys(firstNode.node) : [],
+        hasText: !!(firstNode.node?.text),
+        textPreview: (firstNode.node?.text as string)?.substring(0, 200) || 'NO TEXT'
+      });
+    }
+    
     // Build context from retrieved nodes
     const context = nodes
       .map((node: any) => node.node?.text || '')
       .filter((text: string) => text.length > 0)
       .join('\n\n---\n\n');
+
+    console.log('📝 Built context length:', context.length);
+    console.log('📝 Context preview:', context.substring(0, 500));
 
     // Use Gemini to generate response based on context
     if (!this.geminiModel) {
@@ -183,12 +198,38 @@ Answer:`;
 
   private extractTextContent(node: SourceNode): string | undefined {
     try {
+      // Debug: log the node structure
+      console.log('📄 Extracting text from node:', {
+        hasNode: !!node.node,
+        hasText: !!node.node?.text,
+        textLength: node.node?.text?.length || 0,
+        nodeKeys: node.node ? Object.keys(node.node) : [],
+        metadataKeys: node.node?.metadata ? Object.keys(node.node.metadata) : []
+      });
+      
       if (node.node?.text) {
         return node.node.text;
       }
       
+      // Try getText() method if available
+      if (node.node && typeof (node.node as any).getText === 'function') {
+        const text = (node.node as any).getText();
+        if (text) return text;
+      }
+      
+      // Try getContent() method if available
+      if (node.node && typeof (node.node as any).getContent === 'function') {
+        const content = (node.node as any).getContent();
+        if (content) return content;
+      }
+      
       if (node.node?.metadata && 'text' in node.node.metadata) {
         return (node.node.metadata as any).text;
+      }
+      
+      // Try to get content from the node directly
+      if ((node as any).text) {
+        return (node as any).text;
       }
       
       return undefined;
@@ -201,6 +242,30 @@ Answer:`;
   generateDefaultResponse(question: string): Promise<ResponseResult> {
     const result = this.defaultResponseService.generateResponse(question);
     return Promise.resolve(result);
+  }
+
+  /**
+   * Retrieve relevant documents without generating a response.
+   * Useful for multi-step processing where you want raw document content.
+   */
+  async retrieveDocuments(question: string): Promise<ResponseSource[]> {
+    try {
+      if (this.indexes.length === 0) {
+        console.log('No LlamaCloud indexes configured');
+        return [];
+      }
+
+      const index = this.indexes[0];
+      const retriever = index.asRetriever({
+        similarityTopK: 5,
+      });
+
+      const nodes = await retriever.retrieve(question);
+      return this.extractSources(nodes);
+    } catch (error) {
+      console.error('Error retrieving documents:', error);
+      return [];
+    }
   }
 
   // Utility methods for testing and debugging

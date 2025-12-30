@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { AnswerSource } from "@/types/api"
@@ -11,8 +11,74 @@ interface SourceDetailsDialogProps {
   source: AnswerSource | null;
 }
 
+/**
+ * Clean up text content by removing HTML tags and formatting nicely
+ */
+function cleanTextContent(text: string): string {
+  if (!text) return '';
+  
+  // Replace common HTML table elements with readable formatting
+  let cleaned = text
+    // Handle table structure
+    .replace(/<table[^>]*>/gi, '\n')
+    .replace(/<\/table>/gi, '\n')
+    .replace(/<thead[^>]*>/gi, '')
+    .replace(/<\/thead>/gi, '')
+    .replace(/<tbody[^>]*>/gi, '')
+    .replace(/<\/tbody>/gi, '')
+    .replace(/<tr[^>]*>/gi, '')
+    .replace(/<\/tr>/gi, '\n')
+    .replace(/<th[^>]*>/gi, '| ')
+    .replace(/<\/th>/gi, ' ')
+    .replace(/<td[^>]*>/gi, '| ')
+    .replace(/<\/td>/gi, ' ')
+    // Handle other common HTML elements
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<p[^>]*>/gi, '\n')
+    .replace(/<\/p>/gi, '\n')
+    .replace(/<div[^>]*>/gi, '\n')
+    .replace(/<\/div>/gi, '')
+    .replace(/<li[^>]*>/gi, '\n• ')
+    .replace(/<\/li>/gi, '')
+    .replace(/<ul[^>]*>/gi, '\n')
+    .replace(/<\/ul>/gi, '\n')
+    .replace(/<ol[^>]*>/gi, '\n')
+    .replace(/<\/ol>/gi, '\n')
+    .replace(/<h[1-6][^>]*>/gi, '\n## ')
+    .replace(/<\/h[1-6]>/gi, '\n')
+    .replace(/<strong[^>]*>/gi, '**')
+    .replace(/<\/strong>/gi, '**')
+    .replace(/<b[^>]*>/gi, '**')
+    .replace(/<\/b>/gi, '**')
+    .replace(/<em[^>]*>/gi, '_')
+    .replace(/<\/em>/gi, '_')
+    .replace(/<i[^>]*>/gi, '_')
+    .replace(/<\/i>/gi, '_')
+    // Remove any remaining HTML tags
+    .replace(/<[^>]+>/g, '')
+    // Decode HTML entities
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    // Clean up excessive whitespace
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/[ \t]+/g, ' ')
+    .trim();
+  
+  return cleaned;
+}
+
 export function SourceDetailsDialog({ isOpen, onClose, source }: SourceDetailsDialogProps) {
   const [isTextTabActive, setIsTextTabActive] = useState(true);
+  
+  // Clean the text content for display
+  const cleanedTextContent = useMemo(() => {
+    if (!source?.textContent) return '';
+    return cleanTextContent(source.textContent);
+  }, [source?.textContent]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -52,8 +118,8 @@ export function SourceDetailsDialog({ isOpen, onClose, source }: SourceDetailsDi
                 
                 {source.textContent ? (
                   <ScrollArea className="h-72 w-full border rounded-md">
-                    <div className="whitespace-pre-wrap font-mono text-sm p-4 bg-gray-50">
-                      {source.textContent}
+                    <div className="whitespace-pre-wrap text-sm p-4 bg-gray-50 leading-relaxed">
+                      {cleanedTextContent}
                     </div>
                   </ScrollArea>
                 ) : (
