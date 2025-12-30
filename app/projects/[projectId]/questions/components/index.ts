@@ -9,6 +9,7 @@ export { QuestionsTabsContent } from "./questions-tabs-content"
 export { NoQuestionsAvailable } from "./no-questions-available"
 export { SourceDetailsDialog } from "./source-details-dialog"
 export { UploadDialog } from "./upload-dialog"
+export { ExtractionModeSelector } from "./extraction-mode-selector"
 
 // State components
 export { QuestionsLoadingState, QuestionsErrorState, QuestionsSkeletonLoader } from "./questions-states"

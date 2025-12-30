@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import path from "path";
 
 const nextConfig: NextConfig = {
   // Configure environment variables that will be available on both server and client side
@@ -20,6 +21,15 @@ const nextConfig: NextConfig = {
     serverActions: {
       bodySizeLimit: '10mb',
     },
+  },
+  // Configure webpack for pdfjs-dist worker
+  webpack: (config) => {
+    // Add alias for pdfjs-dist worker
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      canvas: false,
+    };
+    return config;
   },
 };
 

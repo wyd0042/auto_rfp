@@ -14,12 +14,14 @@ import { ProcessingModal, ProcessingStatus } from "./ProcessingModal";
 
 interface FileUploaderProps {
   onFileProcessed?: (result: LlamaParseResult) => void;
+  onFileSelected?: (file: File) => void;
   processingStatus?: ProcessingStatus;
   updateProcessingStatus?: (status: ProcessingStatus) => void;
 }
 
 export function FileUploader({ 
   onFileProcessed,
+  onFileSelected,
   processingStatus: externalProcessingStatus,
   updateProcessingStatus: externalUpdateProcessingStatus
 }: FileUploaderProps) {
@@ -104,6 +106,10 @@ export function FileUploader({
       setFile(file);
       if (!documentName) {
         setDocumentName(file.name.split('.')[0]);
+      }
+      // Notify parent component of file selection
+      if (onFileSelected) {
+        onFileSelected(file);
       }
     } else {
       toast({

@@ -84,7 +84,7 @@ export class GeminiQuestionExtractor implements IAIQuestionExtractor {
         contents: [{ role: 'user', parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }] }],
         generationConfig: {
           temperature: 0.1,
-          maxOutputTokens: 1000,
+          maxOutputTokens: 2000,
           responseMimeType: 'application/json',
         },
       });
@@ -94,22 +94,114 @@ export class GeminiQuestionExtractor implements IAIQuestionExtractor {
         throw new AIServiceError('Empty response from Gemini for eligibility extraction');
       }
 
-      const rawData = this.extractJsonFromResponse(assistantMessage);
+      const rawData = this.extractEligibilityFromResponse(assistantMessage);
 
       if (!rawData.eligibility || !Array.isArray(rawData.eligibility)) {
-        throw new AIServiceError('Invalid eligibility format from AI service');
+        // Return empty array instead of throwing - eligibility is optional
+        console.warn('No eligibility requirements found in document');
+        return [];
       }
 
       return rawData.eligibility.filter(
         (item: unknown) => typeof item === 'string' && (item as string).trim().length > 0
       );
     } catch (error) {
-      if (error instanceof SyntaxError) {
-        throw new AIServiceError('Invalid JSON response from AI service for eligibility extraction');
-      }
-      if (error instanceof AIServiceError) throw error;
-      throw new AIServiceError(`Eligibility extraction failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      // For eligibility extraction, return empty array on failure instead of throwing
+      // This allows the main extraction to continue even if eligibility fails
+      console.error('Eligibility extraction failed, returning empty array:', error);
+      return [];
     }
+  }
+
+  /**
+   * Extract eligibility JSON from response with robust parsing for truncated responses
+   */
+  private extractEligibilityFromResponse(content: string): { eligibility: string[] } {
+    if (!content) return { eligibility: [] };
+
+    const trimmed = content.trim();
+
+    const strategies = [
+      // Strategy 1: Direct JSON parse
+      () => {
+        const parsed = JSON.parse(trimmed);
+        if (parsed.eligibility && Array.isArray(parsed.eligibility)) {
+          return parsed;
+        }
+        return null;
+      },
+      // Strategy 2: Extract from markdown code block
+      () => {
+        const match = trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+        if (match) {
+          const parsed = JSON.parse(match[1].trim());
+          if (parsed.eligibility && Array.isArray(parsed.eligibility)) {
+            return parsed;
+          }
+        }
+        return null;
+      },
+      // Strategy 3: Extract JSON object from response
+      () => {
+        const match = trimmed.match(/\{[\s\S]*\}/);
+        if (match) {
+          const parsed = JSON.parse(match[0]);
+          if (parsed.eligibility && Array.isArray(parsed.eligibility)) {
+            return parsed;
+          }
+        }
+        return null;
+      },
+      // Strategy 4: Handle truncated JSON - extract complete string items
+      () => {
+        const match = trimmed.match(/\{"eligibility"\s*:\s*\[([\s\S]*)/);
+        if (match) {
+          const arrayContent = match[1];
+          const items: string[] = [];
+          // Match complete quoted strings
+          const stringMatches = arrayContent.matchAll(/"([^"\\]*(?:\\.[^"\\]*)*)"/g);
+          for (const m of stringMatches) {
+            const item = m[1].trim();
+            if (item.length > 0) {
+              items.push(item);
+            }
+          }
+          if (items.length > 0) {
+            return { eligibility: items };
+          }
+        }
+        return null;
+      },
+      // Strategy 5: Look for array-like content anywhere
+      () => {
+        const items: string[] = [];
+        // Find all quoted strings that look like requirements
+        const stringMatches = trimmed.matchAll(/"([^"]{10,200})"/g);
+        for (const m of stringMatches) {
+          const item = m[1].trim();
+          // Filter out things that don't look like requirements
+          if (item.length > 10 && !item.includes('{') && !item.includes('}')) {
+            items.push(item);
+          }
+        }
+        if (items.length > 0) {
+          return { eligibility: items.slice(0, 5) }; // Limit to 5
+        }
+        return null;
+      },
+    ];
+
+    for (const strategy of strategies) {
+      try {
+        const result = strategy();
+        if (result !== null) return result;
+      } catch {
+        // Try next strategy
+      }
+    }
+
+    console.warn('Could not extract eligibility from response:', trimmed.substring(0, 200));
+    return { eligibility: [] };
   }
 
   /**
@@ -268,17 +360,54 @@ Rules:
     const trimmed = content.trim();
 
     const strategies = [
+      // Strategy 1: Extract from markdown code block
       () => {
         const match = trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
         if (match) return JSON.parse(match[1].trim());
         return null;
       },
+      // Strategy 2: Extract JSON object
       () => {
         const match = trimmed.match(/\{[\s\S]*\}/);
         if (match) return JSON.parse(match[0]);
         return null;
       },
+      // Strategy 3: Direct parse
       () => JSON.parse(trimmed),
+      // Strategy 4: Try to repair truncated JSON arrays (for eligibility)
+      () => {
+        const match = trimmed.match(/\{"eligibility"\s*:\s*\[([\s\S]*)/);
+        if (match) {
+          const arrayContent = match[1];
+          // Extract complete string items
+          const items: string[] = [];
+          const stringMatches = arrayContent.matchAll(/"([^"]+)"/g);
+          for (const m of stringMatches) {
+            items.push(m[1]);
+          }
+          if (items.length > 0) {
+            return { eligibility: items };
+          }
+        }
+        return null;
+      },
+      // Strategy 5: Try to repair truncated JSON sections (for questions)
+      () => {
+        const match = trimmed.match(/\{"sections"\s*:\s*\[([\s\S]*)/);
+        if (match) {
+          // Try to extract at least one complete section
+          const sectionMatch = match[1].match(/\{[^{}]*"id"[^{}]*"title"[^{}]*"questions"[^{}]*\[[^\]]*\][^{}]*\}/);
+          if (sectionMatch) {
+            try {
+              const section = JSON.parse(sectionMatch[0]);
+              return { sections: [section] };
+            } catch {
+              return null;
+            }
+          }
+        }
+        return null;
+      },
     ];
 
     for (const strategy of strategies) {

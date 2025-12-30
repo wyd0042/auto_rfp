@@ -8,7 +8,7 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     setupFiles: ['./vitest.setup.ts'],
-    include: ['tests/**/*.test.ts', 'lib/**/*.test.ts'],
+    include: ['tests/**/*.test.ts', 'tests/**/*.property.test.ts', 'lib/**/*.test.ts', 'tests/integration/**/*.test.ts'],
     exclude: ['node_modules', '.next', 'dist'],
     coverage: {
       provider: 'v8',

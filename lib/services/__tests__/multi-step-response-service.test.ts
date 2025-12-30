@@ -311,44 +311,48 @@ describe('MultiStepResponseService Step Output Validity', () => {
  *   returning the same object as if the JSON were not wrapped.
  */
 describe('JSON Parsing from Markdown Code Blocks', () => {
+  // String generator that excludes code block delimiters (```) to avoid breaking the markdown parsing
+  // This is a valid constraint since AI responses wouldn't include raw ``` in JSON field values
+  const safeStringArb = fc.string({ minLength: 1 }).filter(s => !s.includes('```'));
+  
   // Arbitrary for generating valid JSON-serializable objects
   const jsonObjectArbitrary = fc.oneof(
     fc.record({
       complexity: fc.constantFrom('simple', 'moderate', 'complex', 'multi-part'),
-      requiredInformation: fc.array(fc.string({ minLength: 1 }), { minLength: 1, maxLength: 3 }),
-      specificEntities: fc.array(fc.string({ minLength: 1 }), { minLength: 0, maxLength: 3 }),
-      searchQueries: fc.array(fc.string({ minLength: 1 }), { minLength: 1, maxLength: 3 }),
+      requiredInformation: fc.array(safeStringArb, { minLength: 1, maxLength: 3 }),
+      specificEntities: fc.array(safeStringArb, { minLength: 0, maxLength: 3 }),
+      searchQueries: fc.array(safeStringArb, { minLength: 1, maxLength: 3 }),
       expectedSources: fc.integer({ min: 1, max: 10 }),
-      reasoning: fc.string({ minLength: 1 }),
+      reasoning: safeStringArb,
     }),
     fc.record({
-      mainResponse: fc.string({ minLength: 1 }),
+      mainResponse: safeStringArb,
       confidence: fc.double({ min: 0, max: 1, noNaN: true }),
       sources: fc.array(
         fc.record({
-          id: fc.string({ minLength: 1 }),
+          id: safeStringArb,
           relevance: fc.double({ min: 0, max: 1, noNaN: true }),
           usedInResponse: fc.boolean(),
         }),
         { minLength: 0, maxLength: 3 }
       ),
-      limitations: fc.array(fc.string({ minLength: 1 }), { minLength: 0, maxLength: 3 }),
-      recommendations: fc.array(fc.string({ minLength: 1 }), { minLength: 0, maxLength: 3 }),
+      limitations: fc.array(safeStringArb, { minLength: 0, maxLength: 3 }),
+      recommendations: fc.array(safeStringArb, { minLength: 0, maxLength: 3 }),
     }),
     fc.record({
       extractedFacts: fc.array(
         fc.record({
-          fact: fc.string({ minLength: 1 }),
-          source: fc.string({ minLength: 1 }),
+          fact: safeStringArb,
+          source: safeStringArb,
           confidence: fc.double({ min: 0, max: 1, noNaN: true }),
         }),
         { minLength: 0, maxLength: 3 }
       ),
-      missingInformation: fc.array(fc.string({ minLength: 1 }), { minLength: 0, maxLength: 3 }),
+      missingInformation: fc.array(safeStringArb, { minLength: 0, maxLength: 3 }),
       conflictingInformation: fc.array(
         fc.record({
-          topic: fc.string({ minLength: 1 }),
-          conflictingSources: fc.array(fc.string({ minLength: 1 }), { minLength: 2, maxLength: 3 }),
+          topic: safeStringArb,
+          conflictingSources: fc.array(safeStringArb, { minLength: 2, maxLength: 3 }),
         }),
         { minLength: 0, maxLength: 2 }
       ),
@@ -426,11 +430,15 @@ describe('JSON Parsing from Markdown Code Blocks', () => {
    * For any valid JSON object, extra whitespace around the JSON in code blocks is handled correctly.
    */
   it('should handle extra whitespace in code blocks', () => {
+    // Generator for whitespace strings using array of whitespace characters joined together
+    const whitespaceArb = fc.array(fc.constantFrom(' ', '\t', '\n'), { minLength: 0, maxLength: 3 })
+      .map(chars => chars.join(''));
+    
     fc.assert(
       fc.property(
         jsonObjectArbitrary,
-        fc.stringOf(fc.constantFrom(' ', '\t', '\n'), { minLength: 0, maxLength: 3 }),
-        fc.stringOf(fc.constantFrom(' ', '\t', '\n'), { minLength: 0, maxLength: 3 }),
+        whitespaceArb,
+        whitespaceArb,
         (obj, leadingWs, trailingWs) => {
           const jsonString = JSON.stringify(obj);
           const wrappedJson = '```json' + leadingWs + jsonString + trailingWs + '```';

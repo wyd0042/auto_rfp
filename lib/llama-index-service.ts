@@ -52,7 +52,6 @@ export class LlamaIndexService implements ILlamaIndexService {
   private initializeIndexes(): void {
 
     try {
-<<<<<<< HEAD
       // Configure Gemini for response generation
       const geminiApiKey = process.env.GEMINI_API_KEY;
       if (geminiApiKey) {
@@ -60,11 +59,10 @@ export class LlamaIndexService implements ILlamaIndexService {
         (this as any).geminiModel = genAI.getGenerativeModel({ model: DEFAULT_LANGUAGE_MODEL });
         console.log('Configured Gemini LLM for response generation');
       }
-=======
+
       // Extract hostname from LLAMACLOUD_API_URL for LlamaCloudIndex
       // The SDK expects just the hostname (e.g., 'api.cloud.eu.llamaindex.ai')
       const baseUrlHostname = new URL(env.LLAMACLOUD_API_URL).hostname;
->>>>>>> 86e0a098730cd5039bc4684b4f91aa554ab50fdc
 
       console.log('Initializing LlamaCloud indexes with config:', this.config);
       if (this.config.indexNames && this.config.indexNames.length > 0) {

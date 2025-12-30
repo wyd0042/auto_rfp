@@ -70,12 +70,15 @@ export class QuestionExtractionService implements IQuestionExtractionService {
 
   /**
    * Extract eligibility requirements from content using AI
+   * Returns empty array on failure to allow main extraction to continue
    */
   private async extractEligibility(content: string, documentName: string): Promise<string[]> {
     try {
       return await geminiQuestionExtractor.extractEligibility(content, documentName);
     } catch (error) {
-      throw new AIServiceError(`AI eligibility extraction failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      // Log the error but return empty array - eligibility is optional
+      console.error('Eligibility extraction failed, continuing with empty array:', error);
+      return [];
     }
   }
 
