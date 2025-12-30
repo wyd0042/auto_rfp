@@ -1,5 +1,9 @@
+// Setup proxy before any network requests
+import './proxy-setup';
+
 import { env, validateEnv } from "./env";
-import { LlamaCloudIndex, ContextChatEngine } from "llamaindex";
+import { LlamaCloudIndex } from "llamaindex";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { 
   ILlamaIndexService,
   LlamaIndexConfig,
@@ -10,6 +14,7 @@ import {
 } from "./interfaces/llama-index";
 import { DefaultResponseService } from "./services/default-response-service";
 import { ExternalServiceError } from "./errors/api-errors";
+import { DEFAULT_LANGUAGE_MODEL } from "./constants";
 
 /**
  * Service for interacting with LlamaIndex Cloud API
@@ -18,6 +23,7 @@ export class LlamaIndexService implements ILlamaIndexService {
   private readonly config: LlamaIndexConfig;
   private readonly indexes: LlamaCloudIndex[] = [];
   private readonly defaultResponseService: DefaultResponseService;
+  private readonly geminiModel: ReturnType<GoogleGenerativeAI['getGenerativeModel']> | null = null;
   
   constructor(config?: Partial<LlamaIndexConfig>) {
     this.defaultResponseService = new DefaultResponseService();
@@ -46,6 +52,13 @@ export class LlamaIndexService implements ILlamaIndexService {
   private initializeIndexes(): void {
 
     try {
+      // Configure Gemini for response generation
+      const geminiApiKey = process.env.GEMINI_API_KEY;
+      if (geminiApiKey) {
+        const genAI = new GoogleGenerativeAI(geminiApiKey);
+        (this as any).geminiModel = genAI.getGenerativeModel({ model: DEFAULT_LANGUAGE_MODEL });
+        console.log('Configured Gemini LLM for response generation');
+      }
 
       console.log('Initializing LlamaCloud indexes with config:', this.config);
       if (this.config.indexNames && this.config.indexNames.length > 0) {
@@ -108,12 +121,35 @@ export class LlamaIndexService implements ILlamaIndexService {
       similarityTopK: 5,
     });
 
-    const chatEngine = new ContextChatEngine({ retriever });
-    const responder = await chatEngine.chat({ message: question });
+    // Retrieve relevant documents
+    const nodes = await retriever.retrieve(question);
+    
+    // Build context from retrieved nodes
+    const context = nodes
+      .map((node: any) => node.node?.text || '')
+      .filter((text: string) => text.length > 0)
+      .join('\n\n---\n\n');
+
+    // Use Gemini to generate response based on context
+    if (!this.geminiModel) {
+      throw new Error('Gemini API key is not configured. Please set the GEMINI_API_KEY environment variable.');
+    }
+
+    const prompt = `Based on the following context, answer the question. If the answer cannot be found in the context, say so.
+
+Context:
+${context}
+
+Question: ${question}
+
+Answer:`;
+
+    const result = await this.geminiModel.generateContent(prompt);
+    const response = result.response.text();
     
     return {
-      response: responder.response,
-      sourceNodes: responder.sourceNodes || []
+      response,
+      sourceNodes: nodes || []
     };
   }
 
