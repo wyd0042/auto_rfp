@@ -10,6 +10,7 @@ import { AlertCircle, Save, Sparkles, Brain } from "lucide-react"
 import { Spinner } from "@/components/ui/spinner"
 import { AnswerDisplay } from "@/components/ui/answer-display"
 import { SourcePanel } from "@/components/ui/source-panel"
+import { ImprovementToolbar } from "@/components/ui/improvement-toolbar"
 import { useSourcePanel } from "@/hooks/use-source-panel"
 import { toast } from "@/components/ui/use-toast"
 import { appendSourceContent } from "@/lib/utils/source-utils"
@@ -126,6 +127,14 @@ export function QuestionEditor({
           className="min-h-[200px]"
           value={answer?.text || ""}
           onChange={(e) => onAnswerChange(e.target.value)}
+        />
+        
+        {/* Improvement Toolbar - AI-powered text improvement actions */}
+        {/* Requirements: 1.2, 2.2, 3.2, 4.2, 5.1 */}
+        <ImprovementToolbar
+          text={answer?.text || ""}
+          onImprove={(improvedText) => onAnswerChange(improvedText)}
+          disabled={isGenerating}
         />
         
         {/* Show markdown preview if there's content */}
