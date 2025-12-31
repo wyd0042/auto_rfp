@@ -4,6 +4,7 @@ import React, { useState, useEffect, createContext, useContext, ReactNode } from
 import { toast } from "@/components/ui/use-toast"
 import { RfpDocument, AnswerSource } from "@/types/api"
 import { useMultiStepResponse } from "@/hooks/use-multi-step-response"
+import { appendSourceContent } from "@/lib/utils/source-utils"
 
 // Interfaces
 interface AnswerData {
@@ -79,6 +80,7 @@ interface QuestionsContextType {
   saveAllAnswers: () => Promise<void>;
   handleExportAnswers: () => void;
   handleSourceClick: (source: AnswerSource) => void;
+  handleUseContent: (source: AnswerSource) => void;
   handleAcceptMultiStepResponse: (response: string, sources: any[]) => void;
   handleCloseMultiStepDialog: () => void;
   
@@ -598,6 +600,38 @@ export function QuestionsProvider({ children, projectId }: QuestionsProviderProp
     setIsSourceModalOpen(true);
   };
 
+  // Handle "Use Content" button click - appends source text to answer
+  const handleUseContent = (source: AnswerSource) => {
+    if (!selectedQuestion || !source.textContent) return;
+    
+    const currentAnswer = answers[selectedQuestion]?.text || '';
+    const newAnswer = appendSourceContent(currentAnswer, source.textContent);
+    
+    // Update the answer with the appended content
+    setAnswers(prev => {
+      const existing = prev[selectedQuestion] || { text: '' };
+      return {
+        ...prev,
+        [selectedQuestion]: {
+          ...existing,
+          text: newAnswer
+        }
+      };
+    });
+
+    // Mark as unsaved
+    setUnsavedQuestions(prev => {
+      const updated = new Set(prev);
+      updated.add(selectedQuestion);
+      return updated;
+    });
+    
+    toast({
+      title: "Content added",
+      description: `Source content from "${source.fileName}" has been appended to your answer.`,
+    });
+  };
+
   // Get current sources for the selected question
   const getCurrentSources = (): AnswerSource[] => {
     if (!selectedQuestion || !answers[selectedQuestion]) {
@@ -732,6 +766,7 @@ export function QuestionsProvider({ children, projectId }: QuestionsProviderProp
     saveAllAnswers,
     handleExportAnswers,
     handleSourceClick,
+    handleUseContent,
     handleAcceptMultiStepResponse,
     handleCloseMultiStepDialog,
     

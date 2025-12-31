@@ -30,6 +30,7 @@ export function QuestionsFilterTabs({ rfpDocument }: QuestionsFilterTabsProps) {
     saveAnswer,
     handleGenerateAnswer,
     handleSourceClick,
+    handleUseContent,
     setUseMultiStep,
     getFilteredQuestions,
     getCounts,
@@ -79,6 +80,7 @@ export function QuestionsFilterTabs({ rfpDocument }: QuestionsFilterTabsProps) {
             onSave={saveAnswer}
             onGenerateAnswer={handleGenerateAnswer}
             onSourceClick={handleSourceClick}
+            onUseContent={handleUseContent}
             onMultiStepToggle={setUseMultiStep}
             rfpDocument={rfpDocument}
             searchQuery={searchQuery}

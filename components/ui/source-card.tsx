@@ -97,22 +97,22 @@ export function SourceCard({ source, isSelected, onSelect, onUseContent }: Sourc
         }
       }}
       className={cn(
-        "p-3 rounded-lg border cursor-pointer transition-all",
-        "hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/50",
+        "p-3 rounded-lg border cursor-pointer transition-all bg-white dark:bg-slate-950",
+        "hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-400/50",
         isSelected 
-          ? "border-primary bg-primary/5 ring-1 ring-primary/30" 
-          : "border-border bg-card hover:border-primary/30"
+          ? "border-blue-400 bg-blue-50 dark:bg-blue-900/20 ring-1 ring-blue-400/30 shadow-sm" 
+          : "border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600"
       )}
     >
       {/* Header: File name and Use button */}
       <div className="flex items-start justify-between gap-2 mb-2">
         <div className="flex items-center gap-2 min-w-0 flex-1">
-          <FileText className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
-          <span className="font-medium text-sm truncate" title={source.fileName}>
+          <FileText className="h-4 w-4 flex-shrink-0 text-slate-400" />
+          <span className="font-medium text-sm truncate text-slate-700 dark:text-slate-300" title={source.fileName}>
             {source.fileName}
           </span>
           {source.pageNumber && (
-            <Badge variant="outline" className="text-xs flex-shrink-0">
+            <Badge variant="outline" className="text-xs flex-shrink-0 bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700">
               p.{source.pageNumber}
             </Badge>
           )}
@@ -123,7 +123,7 @@ export function SourceCard({ source, isSelected, onSelect, onUseContent }: Sourc
             variant="outline"
             size="sm"
             onClick={handleUseClick}
-            className="flex-shrink-0 h-7 px-2 text-xs"
+            className="flex-shrink-0 h-7 px-2 text-xs bg-white dark:bg-slate-900 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300"
           >
             <Copy className="h-3 w-3 mr-1" />
             Use
@@ -153,14 +153,14 @@ export function SourceCard({ source, isSelected, onSelect, onUseContent }: Sourc
       {/* Relevance indicator */}
       <div className="mb-2">
         <div className="flex items-center justify-between mb-1">
-          <span className="text-xs text-muted-foreground">Relevance</span>
-          <span className={cn("text-xs font-medium", colorClasses.text)}>
+          <span className="text-xs text-slate-500 dark:text-slate-400">Relevance</span>
+          <span className={cn("text-xs font-semibold", colorClasses.text)}>
             {source.relevance !== null && source.relevance !== undefined 
               ? `${source.relevance}%` 
               : 'N/A'}
           </span>
         </div>
-        <div className="w-full bg-muted rounded-full h-1.5">
+        <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-1.5">
           <div 
             className={cn("h-1.5 rounded-full transition-all", colorClasses.progress)}
             style={{ width: `${relevanceValue}%` }}
@@ -171,7 +171,7 @@ export function SourceCard({ source, isSelected, onSelect, onUseContent }: Sourc
       {/* Text preview */}
       <p className={cn(
         "text-xs line-clamp-2",
-        source.textContent ? "text-muted-foreground" : "text-muted-foreground/60 italic"
+        source.textContent ? "text-slate-600 dark:text-slate-400" : "text-slate-400 dark:text-slate-500 italic"
       )}>
         {textPreview}
       </p>
