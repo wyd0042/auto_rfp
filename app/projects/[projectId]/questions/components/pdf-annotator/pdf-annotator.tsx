@@ -295,7 +295,7 @@ export function PDFAnnotator({
       />
 
       {/* Main Content Area */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 min-h-0 overflow-hidden">
         {/* PDF Viewer */}
         <div ref={pdfViewerRef} className="flex-1 overflow-hidden relative">
           <PDFViewer
@@ -358,7 +358,7 @@ export function PDFAnnotator({
         </div>
 
         {/* Annotation Sidebar */}
-        <div className="w-80 shrink-0">
+        <div className="w-80 shrink-0 h-full overflow-hidden">
           <AnnotationSidebar
             annotations={annotations}
             suggestions={suggestions}

@@ -391,10 +391,12 @@ export function PDFViewer({
     handleCloseContextMenu()
   }, [currentSelection, onTagSelection, handleCloseContextMenu])
 
-  // Prepare PDF source
-  const pdfSource = typeof pdfData === 'string' 
-    ? pdfData 
-    : { data: pdfData }
+  // Prepare PDF source - memoize to prevent unnecessary reloads
+  const pdfSource = React.useMemo(() => {
+    return typeof pdfData === 'string' 
+      ? pdfData 
+      : { data: pdfData }
+  }, [pdfData])
 
   // Get annotations for current page
   const pageAnnotations = annotations.filter(a => a.pageNumber === currentPage)

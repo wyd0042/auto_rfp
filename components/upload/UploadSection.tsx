@@ -48,6 +48,7 @@ export function UploadSection({
             onFileSelected={onFileSelected}
             processingStatus={processingStatus}
             updateProcessingStatus={updateProcessingStatus}
+            extractionMode={extractionMode}
           />
         </div>
       </div>

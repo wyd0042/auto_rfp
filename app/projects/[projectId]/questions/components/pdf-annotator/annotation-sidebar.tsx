@@ -156,7 +156,7 @@ export function AnnotationSidebar({
   return (
     <div 
       ref={sidebarRef}
-      className="flex flex-col h-full border-l bg-background focus:outline-none"
+      className="flex flex-col h-full max-h-full border-l bg-background focus:outline-none overflow-hidden"
       tabIndex={0}
       onKeyDown={handleKeyDown}
       role="listbox"
@@ -164,7 +164,7 @@ export function AnnotationSidebar({
       aria-activedescendant={focusedAnnotationId ? `annotation-${focusedAnnotationId}` : undefined}
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b">
+      <div className="flex items-center justify-between px-4 py-3 border-b shrink-0">
         <h3 className="text-sm font-semibold">Annotations</h3>
         <div className="flex items-center gap-2">
           {hasAnnotations && (
@@ -185,7 +185,7 @@ export function AnnotationSidebar({
       )}
 
       {/* Content Area */}
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 min-h-0">
         {isEmpty ? (
           <EmptyState mode={mode} />
         ) : (

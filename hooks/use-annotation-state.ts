@@ -89,6 +89,7 @@ export function useAnnotationState(): UseAnnotationStateReturn {
   /**
    * Accepts a single AI suggestion, converting it to a permanent annotation.
    * Removes the suggestion from the suggestions list and adds it to annotations.
+   * Generates a new ID to avoid duplicate key issues during React rendering.
    * 
    * @param id - The ID of the suggestion to accept
    */
@@ -96,9 +97,10 @@ export function useAnnotationState(): UseAnnotationStateReturn {
     setSuggestionsState((prevSuggestions) => {
       const suggestion = prevSuggestions.find((s) => s.id === id);
       if (suggestion) {
-        // Add to annotations with updated source
+        // Add to annotations with new ID and updated source
         const acceptedAnnotation: Annotation = {
           ...suggestion,
+          id: uuidv4(), // Generate new ID to avoid duplicate keys
           source: 'manual', // Once accepted, it becomes a manual annotation
           createdAt: new Date(),
         };
@@ -112,12 +114,14 @@ export function useAnnotationState(): UseAnnotationStateReturn {
   /**
    * Accepts all AI suggestions, converting them to permanent annotations.
    * Clears the suggestions list and adds all to annotations.
+   * Generates new IDs to avoid duplicate key issues during React rendering.
    */
   const acceptAllSuggestions = useCallback((): void => {
     setSuggestionsState((prevSuggestions) => {
       if (prevSuggestions.length > 0) {
         const acceptedAnnotations: Annotation[] = prevSuggestions.map((suggestion) => ({
           ...suggestion,
+          id: uuidv4(), // Generate new ID to avoid duplicate keys
           source: 'manual' as AnnotationSource,
           createdAt: new Date(),
         }));
@@ -195,6 +199,7 @@ export function removeAnnotationPure(
 
 /**
  * Pure function version of acceptSuggestion for testing purposes.
+ * Generates a new ID to avoid duplicate keys.
  */
 export function acceptSuggestionPure(
   annotations: Annotation[],
@@ -208,6 +213,7 @@ export function acceptSuggestionPure(
   
   const acceptedAnnotation: Annotation = {
     ...suggestion,
+    id: uuidv4(), // Generate new ID to avoid duplicate keys
     source: 'manual',
     createdAt: new Date(),
   };
@@ -220,6 +226,7 @@ export function acceptSuggestionPure(
 
 /**
  * Pure function version of acceptAllSuggestions for testing purposes.
+ * Generates new IDs to avoid duplicate keys.
  */
 export function acceptAllSuggestionsPure(
   annotations: Annotation[],
@@ -231,6 +238,7 @@ export function acceptAllSuggestionsPure(
   
   const acceptedAnnotations: Annotation[] = suggestions.map((suggestion) => ({
     ...suggestion,
+    id: uuidv4(), // Generate new ID to avoid duplicate keys
     source: 'manual' as AnnotationSource,
     createdAt: new Date(),
   }));

@@ -11,19 +11,22 @@ import { Spinner } from "@/components/ui/spinner";
 import { LlamaParseResult } from "@/types/api";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { ProcessingModal, ProcessingStatus } from "./ProcessingModal";
+import { ExtractionMode } from "@/types/annotation";
 
 interface FileUploaderProps {
   onFileProcessed?: (result: LlamaParseResult) => void;
   onFileSelected?: (file: File) => void;
   processingStatus?: ProcessingStatus;
   updateProcessingStatus?: (status: ProcessingStatus) => void;
+  extractionMode?: ExtractionMode;
 }
 
 export function FileUploader({ 
   onFileProcessed,
   onFileSelected,
   processingStatus: externalProcessingStatus,
-  updateProcessingStatus: externalUpdateProcessingStatus
+  updateProcessingStatus: externalUpdateProcessingStatus,
+  extractionMode = 'auto'
 }: FileUploaderProps) {
   const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
@@ -41,6 +44,9 @@ export function FileUploader({
 
   // Use external processing status if provided, otherwise use internal
   const processingStatus = externalProcessingStatus || internalProcessingStatus;
+  
+  // Check if we're in manual/ai-assisted mode (simpler flow)
+  const isManualMode = extractionMode === 'manual' || extractionMode === 'ai-assisted';
   
   // Function to update processing status - calls external handler if provided
   const updateProcessingStatus = (status: ProcessingStatus) => {
@@ -146,14 +152,17 @@ export function FileUploader({
     setShowProcessingModal(true);
     setIsUploading(true);
 
+    // For manual/ai-assisted mode, use a shorter timeout since we skip AI extraction
+    const timeoutDuration = isManualMode ? 2000 : 3000;
+    
     // Set up a timer to automatically progress the UI after a reasonable time
     const progressTimer = setTimeout(() => {
-      // If we're still uploading after 3 seconds, assume backend processing has started
+      // If we're still uploading after timeout, assume backend processing has started
       if (processingStatus === "uploading") {
         console.log("Auto-advancing to analyzing state after timeout");
         updateProcessingStatus("analyzing");
       }
-    }, 3000);
+    }, timeoutDuration);
 
     try {
       // Create form data
@@ -191,8 +200,20 @@ export function FileUploader({
       setIsUploading(false);
       setProcessedResult(result);
       
-      // Since API has responded completely, go directly to mapping phase
-      // The actual parsing is already done at this point
+      // For manual/ai-assisted mode, skip the lengthy progress simulation
+      // and go directly to the callback
+      if (isManualMode) {
+        updateProcessingStatus("complete");
+        setShowProcessingModal(false);
+        
+        // Call the onFileProcessed callback immediately
+        if (onFileProcessed) {
+          onFileProcessed(result);
+        }
+        return;
+      }
+      
+      // For auto mode, continue with the full progress flow
       updateProcessingStatus("mapping");
       
       // Now simulate the mapping progress
