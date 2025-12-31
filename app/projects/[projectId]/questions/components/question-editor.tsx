@@ -1,5 +1,6 @@
 "use client"
 
+import * as React from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -8,6 +9,10 @@ import { Switch } from "@/components/ui/switch"
 import { AlertCircle, Save, Sparkles, Brain } from "lucide-react"
 import { Spinner } from "@/components/ui/spinner"
 import { AnswerDisplay } from "@/components/ui/answer-display"
+import { SourcePanel } from "@/components/ui/source-panel"
+import { useSourcePanel } from "@/hooks/use-source-panel"
+import { toast } from "@/components/ui/use-toast"
+import { appendSourceContent } from "@/lib/utils/source-utils"
 import { AnswerSource } from "@/types/api"
 
 interface AnswerData {
@@ -46,6 +51,43 @@ export function QuestionEditor({
   onSourceClick,
   onMultiStepToggle
 }: QuestionEditorProps) {
+  // Use the source panel hook for state management with localStorage persistence
+  const { isExpanded, toggle } = useSourcePanel();
+  
+  // Track selected source for visual highlighting
+  const [selectedSourceId, setSelectedSourceId] = React.useState<number | undefined>(undefined);
+  
+  // Get sources from answer, default to empty array
+  const sources = answer?.sources ?? [];
+  
+  /**
+   * Handler for using source content - appends source text to current answer
+   * Requirements: 5.2, 5.3
+   */
+  const handleUseContent = (source: AnswerSource) => {
+    if (!source.textContent) return;
+    
+    const currentText = answer?.text || '';
+    const newText = appendSourceContent(currentText, source.textContent);
+    
+    onAnswerChange(newText);
+    
+    // Show confirmation notification (Requirement 5.3)
+    toast({
+      title: "Content added",
+      description: `Added content from "${source.fileName}" to your answer.`,
+    });
+  };
+  
+  /**
+   * Handler for source selection - highlights source and opens details dialog
+   * Requirements: 2.1, 2.2
+   */
+  const handleSourceClick = (source: AnswerSource) => {
+    setSelectedSourceId(source.id);
+    onSourceClick(source);
+  };
+
   return (
     <Card>
       <CardHeader className="pb-2">
@@ -94,24 +136,17 @@ export function QuestionEditor({
           </div>
         )}
         
-        {/* Display sources if available */}
-        {answer?.sources && answer.sources.length > 0 && (
-          <div className="mt-2 text-sm">
-            <div className="font-medium text-gray-700">Sources:</div>
-            <div className="flex flex-wrap gap-2 mt-1">
-              {answer.sources.map((source) => (
-                <span 
-                  key={source.id} 
-                  className="inline-block px-2 py-1 bg-slate-100 border border-slate-200 rounded text-slate-600 hover:bg-slate-200 transition-colors cursor-pointer" 
-                  title={`${source.fileName}${source.pageNumber ? ` - Page ${source.pageNumber}` : ''}`}
-                  onClick={() => onSourceClick(source)}
-                >
-                  {source.id}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
+        {/* Source Panel - Collapsible panel showing all sources with relevance indicators */}
+        {/* Requirements: 1.1, 1.2, 1.4, 3.1 */}
+        <SourcePanel
+          sources={sources}
+          onSourceClick={handleSourceClick}
+          onUseContent={handleUseContent}
+          isExpanded={isExpanded}
+          onToggle={toggle}
+          selectedSourceId={selectedSourceId}
+          questionText={question.question}
+        />
         
         {/* Action area */}
         <div className="flex items-center justify-between pt-4 border-t">

@@ -49,6 +49,13 @@ interface QuestionsContextType {
   isLoadingIndexes: boolean;
   organizationConnected: boolean;
   
+  // Source navigation state
+  selectedSourceIndex: number;
+  setSelectedSourceIndex: (index: number) => void;
+  navigateToNextSource: () => void;
+  navigateToPreviousSource: () => void;
+  getCurrentSources: () => AnswerSource[];
+  
   // Multi-step response state
   useMultiStep: boolean;
   setUseMultiStep: (use: boolean) => void;
@@ -122,6 +129,9 @@ export function QuestionsProvider({ children, projectId }: QuestionsProviderProp
   const [availableIndexes, setAvailableIndexes] = useState<ProjectIndex[]>([]);
   const [isLoadingIndexes, setIsLoadingIndexes] = useState(false);
   const [organizationConnected, setOrganizationConnected] = useState(false);
+
+  // Source navigation state
+  const [selectedSourceIndex, setSelectedSourceIndex] = useState<number>(0);
 
   // Multi-step response state
   const [useMultiStep, setUseMultiStep] = useState(false);
@@ -588,6 +598,39 @@ export function QuestionsProvider({ children, projectId }: QuestionsProviderProp
     setIsSourceModalOpen(true);
   };
 
+  // Get current sources for the selected question
+  const getCurrentSources = (): AnswerSource[] => {
+    if (!selectedQuestion || !answers[selectedQuestion]) {
+      return [];
+    }
+    return answers[selectedQuestion].sources || [];
+  };
+
+  // Navigate to next source
+  const navigateToNextSource = () => {
+    const sources = getCurrentSources();
+    if (sources.length === 0) return;
+    
+    const nextIndex = (selectedSourceIndex + 1) % sources.length;
+    setSelectedSourceIndex(nextIndex);
+    setSelectedSource(sources[nextIndex]);
+  };
+
+  // Navigate to previous source
+  const navigateToPreviousSource = () => {
+    const sources = getCurrentSources();
+    if (sources.length === 0) return;
+    
+    const prevIndex = selectedSourceIndex === 0 ? sources.length - 1 : selectedSourceIndex - 1;
+    setSelectedSourceIndex(prevIndex);
+    setSelectedSource(sources[prevIndex]);
+  };
+
+  // Reset source index when selected question changes
+  useEffect(() => {
+    setSelectedSourceIndex(0);
+  }, [selectedQuestion]);
+
   // Refresh questions data
   const refreshQuestions = async () => {
     setIsLoading(true);
@@ -658,6 +701,13 @@ export function QuestionsProvider({ children, projectId }: QuestionsProviderProp
     availableIndexes,
     isLoadingIndexes,
     organizationConnected,
+    
+    // Source navigation state
+    selectedSourceIndex,
+    setSelectedSourceIndex,
+    navigateToNextSource,
+    navigateToPreviousSource,
+    getCurrentSources,
     
     // Multi-step response state
     useMultiStep,
