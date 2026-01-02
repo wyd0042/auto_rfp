@@ -1,6 +1,6 @@
-# Contributing to AutoRFP
+# Contributing to AI4RFP
 
-Thank you for your interest in contributing to AutoRFP! This document provides guidelines and information for contributors.
+Thank you for your interest in contributing to AI4RFP! This document provides guidelines and information for contributors.
 
 ## 🤝 How to Contribute
 
@@ -46,8 +46,8 @@ When requesting a feature:
 
 ```bash
 # 1. Fork and clone the repository
-git clone https://github.com/your-username/auto_rfp.git
-cd auto_rfp
+git clone https://github.com/your-username/ai4rfp.git
+cd ai4rfp
 
 # 2. Install dependencies
 pnpm install
@@ -70,8 +70,8 @@ Create a `.env` file with these variables:
 
 ```bash
 # Database
-DATABASE_URL="postgresql://username:password@localhost:5432/auto_rfp"
-DIRECT_URL="postgresql://username:password@localhost:5432/auto_rfp"
+DATABASE_URL="postgresql://username:password@localhost:5432/ai4rfp"
+DIRECT_URL="postgresql://username:password@localhost:5432/ai4rfp"
 
 # Supabase
 NEXT_PUBLIC_SUPABASE_URL="your-supabase-url"
@@ -342,8 +342,8 @@ export async function createOrganization(
 
 ## 📄 License
 
-By contributing to AutoRFP, you agree that your contributions will be licensed under the MIT License.
+By contributing to AI4RFP, you agree that your contributions will be licensed under the MIT License.
 
 ---
 
-Thank you for contributing to AutoRFP! 🙏 
+Thank you for contributing to AI4RFP! 🙏 

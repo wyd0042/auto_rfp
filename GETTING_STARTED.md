@@ -1,6 +1,6 @@
 # Quick Start Guide
 
-Get AutoRFP running locally in 5 minutes.
+Get AI4RFP running locally in 5 minutes.
 
 ## Prerequisites
 
@@ -22,8 +22,8 @@ pnpm install
 
 ```bash
 # Database
-DATABASE_URL="postgresql://username:password@localhost:5432/auto_rfp"
-DIRECT_URL="postgresql://username:password@localhost:5432/auto_rfp"
+DATABASE_URL="postgresql://username:password@localhost:5432/ai4rfp"
+DIRECT_URL="postgresql://username:password@localhost:5432/ai4rfp"
 
 # Supabase (get from supabase.com > Settings > API)
 NEXT_PUBLIC_SUPABASE_URL="your-supabase-project-url"
@@ -43,7 +43,7 @@ NEXT_PUBLIC_APP_URL="http://localhost:3000"
 
 ```bash
 # Create database (if needed)
-createdb auto_rfp
+createdb ai4rfp
 
 # Generate Prisma client & run migrations
 pnpm prisma generate

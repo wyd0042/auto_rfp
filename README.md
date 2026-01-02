@@ -1,6 +1,6 @@
-# AutoRFP - AI-Powered RFP Response Platform
+# AI4RFP - AI-Powered RFP Response Platform
 
-AutoRFP is an intelligent platform that automates RFP (Request for Proposal) response generation using advanced AI. Built with Next.js 15 and powered by LlamaIndex, it helps organizations respond to RFPs 80% faster by automatically extracting questions from documents and generating contextual responses based on your knowledge base.
+AI4RFP is an intelligent platform that automates RFP (Request for Proposal) response generation using advanced AI. Built with Next.js 15 and powered by LlamaIndex, it helps organizations respond to RFPs 80% faster by automatically extracting questions from documents and generating contextual responses based on your knowledge base.
 
 ## ✨ Features
 
@@ -40,7 +40,7 @@ AutoRFP is an intelligent platform that automates RFP (Request for Proposal) res
 
 ## 📋 Prerequisites
 
-Before setting up AutoRFP, ensure you have:
+Before setting up AI4RFP, ensure you have:
 
 - **Node.js** 18.x or later
 - **pnpm** 8.x or later
@@ -54,8 +54,8 @@ Before setting up AutoRFP, ensure you have:
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/your-username/auto_rfp.git
-cd auto_rfp
+git clone https://github.com/your-username/ai4rfp.git
+cd ai4rfp
 ```
 
 ### 2. Install Dependencies
@@ -70,8 +70,8 @@ Create a `.env` file in the root directory:
 
 ```bash
 # Database
-DATABASE_URL=postgresql://username:password@localhost:5432/auto_rfp
-DIRECT_URL=postgresql://username:password@localhost:5432/auto_rfp
+DATABASE_URL=postgresql://username:password@localhost:5432/ai4rfp
+DIRECT_URL=postgresql://username:password@localhost:5432/ai4rfp
 
 # Supabase Configuration
 NEXT_PUBLIC_SUPABASE_URL=<your-supabase-project-url>
@@ -102,10 +102,10 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 If using local PostgreSQL:
 ```bash
 # Create database
-createdb auto_rfp
+createdb ai4rfp
 
 # Or using psql
-psql -c "CREATE DATABASE auto_rfp;"
+psql -c "CREATE DATABASE ai4rfp;"
 ```
 
 #### Run Database Migrations
@@ -155,7 +155,7 @@ Visit [http://localhost:3000][] to see the application.
 ## 📁 Project Structure
 
 ```
-auto_rfp/
+ai4rfp/
 ├── app/                          # Next.js 15 App Router
 │   ├── api/                      # API routes
 │   │   ├── extract-questions/    # Question extraction endpoint
@@ -248,7 +248,7 @@ The application can be deployed to any platform that supports Node.js:
 
 ### Build and Run with Docker
 
-AutoRFP includes Docker support for containerized deployment.
+AI4RFP includes Docker support for containerized deployment.
 
 ```bash
 # Build the Docker image

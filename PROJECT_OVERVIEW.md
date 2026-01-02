@@ -1,8 +1,8 @@
-# AutoRFP - Complete Project Overview
+# AI4RFP - Complete Project Overview
 
 ## What This Application Does
 
-**AutoRFP** is an AI-powered RFP (Request for Proposal) response platform. It helps organizations respond to RFPs 80% faster by:
+**AI4RFP** is an AI-powered RFP (Request for Proposal) response platform. It helps organizations respond to RFPs 80% faster by:
 
 1. **Automatically extracting questions** from uploaded RFP documents
 2. **Generating contextual AI responses** based on your organization's knowledge base
@@ -77,7 +77,7 @@ The application currently supports:
 ## Project Structure
 
 ```
-auto_rfp/
+ai4rfp/
 ├── app/                    # Next.js App Router
 │   ├── api/               # Backend API routes
 │   │   ├── extract-questions/    # Question extraction
@@ -208,8 +208,8 @@ pnpm dev
 
 ```bash
 # Database
-DATABASE_URL="postgresql://username:password@localhost:5432/auto_rfp"
-DIRECT_URL="postgresql://username:password@localhost:5432/auto_rfp"
+DATABASE_URL="postgresql://username:password@localhost:5432/ai4rfp"
+DIRECT_URL="postgresql://username:password@localhost:5432/ai4rfp"
 
 # Supabase
 NEXT_PUBLIC_SUPABASE_URL="your-supabase-project-url"

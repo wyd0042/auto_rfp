@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
+import { useState, useEffect, useCallback } from "react";
 import {
   Sidebar,
   SidebarContent,
@@ -17,39 +17,106 @@ import {
   SidebarRail,
   SidebarSeparator,
   SidebarTrigger,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { UserSection } from "@/components/user-section";
 import { OrganizationProjectSwitcher } from "@/components/organization-project-switcher";
+import { QuickStats, calculateQuickStats, type ProjectStats } from "@/components/dashboard/quick-stats";
 import { useOrganization } from "@/context/organization-context";
 import { 
-  BarChart3, 
-  ChevronRight, 
   FileText, 
   Home, 
-  Search, 
   Settings, 
-  Upload,
   Users,
-  AlertCircle,
   HelpCircle,
-  User,
-  Zap,
   Building2,
   FolderOpen,
-  Receipt,
-  CheckSquare,
-  Plus,
   MessageSquare,
-  BookOpen
+  BookOpen,
+  LayoutDashboard
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
+/**
+ * AI4RFP Logo component with gradient styling
+ */
+function AI4RFPLogo() {
+  const { state } = useSidebar();
+  const collapsed = state === "collapsed";
+  
+  return (
+    <div className="flex items-center gap-3 px-2 py-3" data-testid="ai4rfp-branding">
+      <div 
+        className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-purple-600 via-blue-500 to-cyan-400 text-white font-bold text-sm shadow-md"
+        data-testid="ai4rfp-logo"
+      >
+        AI
+      </div>
+      {!collapsed && (
+        <div className="flex flex-col group-data-[collapsible=icon]:hidden" data-testid="ai4rfp-text">
+          <span className="font-bold text-lg leading-tight" data-testid="ai4rfp-brand-name">AI4RFP</span>
+          <span className="text-xs text-muted-foreground" data-testid="ai4rfp-subtitle">RFP Response Platform</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AppSidebar() {
   const pathname = usePathname();
   const { currentProject, currentOrganization } = useOrganization();
+  
+  // State for quick stats
+  const [quickStats, setQuickStats] = useState({
+    activeProjects: 0,
+    avgResponseTime: 0,
+    completionRate: 0,
+  });
+  const [statsLoading, setStatsLoading] = useState(true);
+
+  // Fetch projects and calculate quick stats
+  const fetchQuickStats = useCallback(async () => {
+    try {
+      setStatsLoading(true);
+      const response = await fetch("/api/projects");
+      const data = await response.json();
+
+      if (data.success && data.data) {
+        const projectStats: ProjectStats[] = data.data.map((project: {
+          questions?: Array<{
+            id: string;
+            answer?: { id: string; text: string } | null;
+          }>;
+        }) => {
+          const totalQuestions = project.questions?.length || 0;
+          const completedQuestions = project.questions?.filter(
+            (q) => q.answer && q.answer.text
+          ).length || 0;
+          
+          return {
+            completedQuestions,
+            totalQuestions,
+            isActive: true, // Consider all projects as active for now
+          };
+        });
+
+        const stats = calculateQuickStats(projectStats);
+        setQuickStats(stats);
+      }
+    } catch (error) {
+      console.error("Failed to fetch quick stats:", error);
+    } finally {
+      setStatsLoading(false);
+    }
+  }, []);
+
+  // Fetch stats on mount and when organization changes
+  useEffect(() => {
+    fetchQuickStats();
+  }, [fetchQuickStats, currentOrganization]);
 
   // Determine current context based on URL and context
   const getRouteContext = () => {
@@ -158,14 +225,44 @@ function AppSidebar() {
 
   const contextNavigationItems = getNavigationItems();
 
+  // Global navigation items - always visible
+  const globalNavigationItems = [
+    {
+      title: "Dashboard",
+      url: "/dashboard",
+      icon: LayoutDashboard,
+    },
+  ];
+
   return (
     <Sidebar variant="inset" collapsible="icon" className="border-r h-full">
       <SidebarHeader>
+        <AI4RFPLogo />
+        <SidebarSeparator className="my-2" />
         <OrganizationProjectSwitcher />
       </SidebarHeader>
 
       <SidebarContent className="overflow-y-auto">
         <SidebarMenu>
+          {/* Global navigation - Dashboard first */}
+          <SidebarMenuSub>
+            {globalNavigationItems.map((item) => (
+              <SidebarMenuSubItem key={item.title}>
+                <SidebarMenuSubButton 
+                  asChild 
+                  isActive={pathname === item.url}
+                  data-testid={`nav-item-${item.title.toLowerCase()}`}
+                >
+                  <Link href={item.url}>
+                    <item.icon className="size-4" />
+                    <span>{item.title}</span>
+                  </Link>
+                </SidebarMenuSubButton>
+              </SidebarMenuSubItem>
+            ))}
+          </SidebarMenuSub>
+          <SidebarSeparator className="my-2" />
+
           {/* Context-specific navigation (organization or project) */}
           {contextNavigationItems.map((group) => (
             <div key={group.title}>
@@ -204,6 +301,15 @@ function AppSidebar() {
             </div>
           )}
         </SidebarMenu>
+        
+        {/* Quick Stats Section */}
+        {!statsLoading && (
+          <QuickStats
+            activeProjects={quickStats.activeProjects}
+            avgResponseTime={quickStats.avgResponseTime}
+            completionRate={quickStats.completionRate}
+          />
+        )}
       </SidebarContent>
 
       <SidebarFooter>
