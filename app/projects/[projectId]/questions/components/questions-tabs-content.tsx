@@ -7,6 +7,8 @@ import { QuestionNavigator } from "../../../components/question-navigator"
 import { AISuggestionsPanel } from "../../../components/ai-suggestions-panel"
 import { SourceSidePanel } from "@/components/ui/source-side-panel"
 import { AnswerSource } from "@/types/api"
+import { AssigneeInfo } from "./assignee-badge"
+import { OrganizationMember } from "./assignee-dropdown"
 
 /**
  * Layout configuration for the three-panel structure.
@@ -109,6 +111,12 @@ interface QuestionsTabsContentProps {
   onMultiStepToggle: (enabled: boolean) => void;
   rfpDocument?: any;
   searchQuery?: string;
+  // Assignment props
+  organizationMembers?: OrganizationMember[];
+  canAssign?: boolean;
+  onAssign?: (questionId: string, userId: string | null) => Promise<void>;
+  // Project ID for assignment stats
+  projectId?: string;
 }
 
 export function QuestionsTabsContent({
@@ -132,7 +140,11 @@ export function QuestionsTabsContent({
   onUseContent,
   onMultiStepToggle,
   rfpDocument,
-  searchQuery
+  searchQuery,
+  organizationMembers = [],
+  canAssign = false,
+  onAssign,
+  projectId,
 }: QuestionsTabsContentProps) {
   const getFilterTitle = () => {
     switch (filterType) {
@@ -170,6 +182,7 @@ export function QuestionsTabsContent({
                 unsavedQuestions={unsavedQuestions}
                 onSelectQuestion={(id) => onSelectQuestion(id)}
                 searchQuery={searchQuery}
+                projectId={projectId}
               />
             </div>
           </div>
@@ -204,6 +217,10 @@ export function QuestionsTabsContent({
               onSave={() => onSave(selectedQuestion)}
               onGenerateAnswer={() => onGenerateAnswer(selectedQuestion)}
               onMultiStepToggle={onMultiStepToggle}
+              assignee={questionData.question.assignee}
+              organizationMembers={organizationMembers}
+              canAssign={canAssign}
+              onAssign={onAssign ? (userId) => onAssign(selectedQuestion, userId) : undefined}
             />
 
             {showAIPanel && <AISuggestionsPanel questionId={selectedQuestion} />}

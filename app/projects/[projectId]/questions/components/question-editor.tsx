@@ -10,6 +10,8 @@ import { Spinner } from "@/components/ui/spinner"
 import { AnswerDisplay } from "@/components/ui/answer-display"
 import { ImprovementToolbar } from "@/components/ui/improvement-toolbar"
 import { AnswerSource } from "@/types/api"
+import { AssigneeBadge, AssigneeInfo } from "./assignee-badge"
+import { AssigneeDropdown, OrganizationMember } from "./assignee-dropdown"
 
 interface AnswerData {
   text: string;
@@ -54,6 +56,11 @@ interface QuestionEditorProps {
   onSave: () => void;
   onGenerateAnswer: () => void;
   onMultiStepToggle: (enabled: boolean) => void;
+  // Assignment props
+  assignee?: AssigneeInfo | null;
+  organizationMembers?: OrganizationMember[];
+  canAssign?: boolean;
+  onAssign?: (userId: string | null) => Promise<void>;
 }
 
 export function QuestionEditor({
@@ -68,7 +75,11 @@ export function QuestionEditor({
   onAnswerChange,
   onSave,
   onGenerateAnswer,
-  onMultiStepToggle
+  onMultiStepToggle,
+  assignee,
+  organizationMembers = [],
+  canAssign = false,
+  onAssign,
 }: QuestionEditorProps) {
   return (
     <div className="space-y-4">
@@ -82,6 +93,9 @@ export function QuestionEditor({
             </p>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
+            {/* Assignee Badge */}
+            <AssigneeBadge assignee={assignee ?? null} showTooltip={true} />
+            
             {isUnsaved && (
               <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
                 Unsaved
@@ -98,6 +112,19 @@ export function QuestionEditor({
             </Badge>
           </div>
         </div>
+        
+        {/* Assignment Dropdown - only shown for admin/owner users */}
+        {canAssign && onAssign && (
+          <div className="mt-3 flex items-center gap-2">
+            <AssigneeDropdown
+              questionId={question.id}
+              currentAssignee={assignee ?? null}
+              organizationMembers={organizationMembers}
+              onAssign={onAssign}
+              disabled={isSaving || isGenerating}
+            />
+          </div>
+        )}
       </div>
 
       {/* Index warning */}

@@ -1,9 +1,9 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { ChevronDown, ChevronRight, CheckCircle } from "lucide-react"
+import { ChevronDown, ChevronRight, CheckCircle, Users } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { RfpSection } from "@/types/api"
+import { RfpSection, AssignmentStats, UserAssignmentCount } from "@/types/api"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 // Interface for answer data
@@ -15,12 +15,118 @@ interface AnswerData {
 // Define possible question statuses
 type QuestionStatus = "unanswered" | "complete";
 
+/**
+ * Question with assignee for statistics computation
+ */
+export interface QuestionForStats {
+  id: string;
+  assignee?: { id: string } | null;
+}
+
+/**
+ * Organization member for statistics computation
+ */
+export interface MemberForStats {
+  userId: string;
+  userName: string | null;
+  userEmail: string;
+}
+
+/**
+ * Computed assignment statistics
+ */
+export interface ComputedAssignmentStats {
+  totalQuestions: number;
+  unassignedCount: number;
+  assignmentsByUser: UserAssignmentCount[];
+}
+
+/**
+ * Pure function to compute assignment statistics from questions and members
+ * This function is exported for property-based testing
+ * 
+ * @param questions - Array of questions with optional assignee
+ * @param members - Array of organization members
+ * @returns Computed assignment statistics
+ */
+export function computeAssignmentStats(
+  questions: QuestionForStats[],
+  members: MemberForStats[]
+): ComputedAssignmentStats {
+  const totalQuestions = questions.length;
+  const unassignedCount = questions.filter(q => !q.assignee).length;
+
+  // Count assignments per user
+  const assignmentCounts = new Map<string, number>();
+  for (const question of questions) {
+    if (question.assignee?.id) {
+      const currentCount = assignmentCounts.get(question.assignee.id) || 0;
+      assignmentCounts.set(question.assignee.id, currentCount + 1);
+    }
+  }
+
+  // Build the assignments by user array (including members with zero assignments)
+  const assignmentsByUser: UserAssignmentCount[] = members.map(member => ({
+    userId: member.userId,
+    userName: member.userName,
+    userEmail: member.userEmail,
+    count: assignmentCounts.get(member.userId) || 0,
+  }));
+
+  return {
+    totalQuestions,
+    unassignedCount,
+    assignmentsByUser,
+  };
+}
+
+/**
+ * Validates that assignment statistics are accurate
+ * Returns true if stats are valid, false otherwise
+ * 
+ * @param stats - The computed statistics to validate
+ * @param questions - The source questions
+ * @returns true if statistics are accurate
+ */
+export function validateAssignmentStats(
+  stats: ComputedAssignmentStats,
+  questions: QuestionForStats[]
+): boolean {
+  // Total should match question count
+  if (stats.totalQuestions !== questions.length) {
+    return false;
+  }
+
+  // Unassigned count should match questions without assignee
+  const actualUnassigned = questions.filter(q => !q.assignee).length;
+  if (stats.unassignedCount !== actualUnassigned) {
+    return false;
+  }
+
+  // Sum of all user counts + unassigned should equal total
+  const sumOfUserCounts = stats.assignmentsByUser.reduce((sum, user) => sum + user.count, 0);
+  if (sumOfUserCounts + stats.unassignedCount !== stats.totalQuestions) {
+    return false;
+  }
+
+  // Each user's count should match actual assignments
+  for (const userStat of stats.assignmentsByUser) {
+    const actualCount = questions.filter(q => q.assignee?.id === userStat.userId).length;
+    if (userStat.count !== actualCount) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 interface QuestionNavigatorProps {
   onSelectQuestion: (id: string) => void;
   sections: RfpSection[];
   answers: Record<string, AnswerData>;
   unsavedQuestions?: Set<string>;
   searchQuery?: string;
+  projectId?: string;
 }
 
 export function QuestionNavigator({ 
@@ -28,9 +134,13 @@ export function QuestionNavigator({
   sections,
   answers,
   unsavedQuestions = new Set(),
-  searchQuery = "" 
+  searchQuery = "",
+  projectId
 }: QuestionNavigatorProps) {
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({})
+  const [assignmentStats, setAssignmentStats] = useState<AssignmentStats | null>(null)
+  const [isLoadingStats, setIsLoadingStats] = useState(false)
+  const [showStats, setShowStats] = useState(false)
 
   // Initialize expanded sections
   useEffect(() => {
@@ -43,6 +153,32 @@ export function QuestionNavigator({
       setExpandedSections(initialState);
     }
   }, [sections]);
+
+  // Fetch assignment statistics
+  useEffect(() => {
+    if (!projectId) return;
+
+    const fetchAssignmentStats = async () => {
+      setIsLoadingStats(true);
+      try {
+        const response = await fetch(`/api/projects/${projectId}/assignment-stats`);
+        if (response.ok) {
+          const stats = await response.json();
+          setAssignmentStats(stats);
+        } else {
+          console.error("Failed to fetch assignment stats");
+          setAssignmentStats(null);
+        }
+      } catch (error) {
+        console.error("Error fetching assignment stats:", error);
+        setAssignmentStats(null);
+      } finally {
+        setIsLoadingStats(false);
+      }
+    };
+
+    fetchAssignmentStats();
+  }, [projectId, sections]); // Re-fetch when sections change (indicates data refresh)
 
   const toggleSection = (sectionId: string) => {
     setExpandedSections((prev) => ({
@@ -97,6 +233,61 @@ export function QuestionNavigator({
   return (
     <TooltipProvider>
       <div className="space-y-2 text-sm">
+        {/* Assignment Statistics Section */}
+        {projectId && (
+          <div className="mb-4">
+            <button
+              className="flex w-full items-center justify-between rounded-md p-2 font-medium hover:bg-muted bg-muted/50"
+              onClick={() => setShowStats(!showStats)}
+            >
+              <span className="flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                Assignment Stats
+              </span>
+              {showStats ? <ChevronDown className="h-4 w-4 flex-shrink-0" /> : <ChevronRight className="h-4 w-4 flex-shrink-0" />}
+            </button>
+            {showStats && (
+              <div className="ml-2 mt-2 space-y-2 pl-2 border-l-2 border-muted">
+                {isLoadingStats ? (
+                  <div className="text-muted-foreground text-xs py-2">Loading stats...</div>
+                ) : assignmentStats ? (
+                  <>
+                    {/* Unassigned count */}
+                    <div className="flex items-center justify-between py-1 px-2 rounded-md hover:bg-muted/50">
+                      <span className="text-muted-foreground">Unassigned</span>
+                      <span className="font-medium text-amber-600">{assignmentStats.unassignedCount}</span>
+                    </div>
+                    {/* Per-member counts */}
+                    {assignmentStats.assignmentsByUser.map((userStat: UserAssignmentCount) => (
+                      <Tooltip key={userStat.userId}>
+                        <TooltipTrigger asChild>
+                          <div className="flex items-center justify-between py-1 px-2 rounded-md hover:bg-muted/50 cursor-default">
+                            <span className="truncate max-w-[150px]">
+                              {userStat.userName || userStat.userEmail}
+                            </span>
+                            <span className="font-medium">{userStat.count}</span>
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>{userStat.userName || "No name"}</p>
+                          <p className="text-xs text-muted-foreground">{userStat.userEmail}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    ))}
+                    {/* Total */}
+                    <div className="flex items-center justify-between py-1 px-2 rounded-md border-t border-muted mt-2 pt-2">
+                      <span className="font-medium">Total</span>
+                      <span className="font-medium">{assignmentStats.totalQuestions}</span>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-muted-foreground text-xs py-2">Unable to load stats</div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
         {filteredSections.map((section) => (
         <div key={section.id} className="space-y-1">
           <button

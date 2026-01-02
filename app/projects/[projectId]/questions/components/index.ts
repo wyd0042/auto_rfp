@@ -17,5 +17,22 @@ export { QuestionsLoadingState, QuestionsErrorState, QuestionsSkeletonLoader } f
 // Dialog handlers
 export { MultiStepResponseHandler } from "./multi-step-response-handler"
 
+// Assignment components
+export { AssigneeBadge, getAssigneeBadgeDisplayText, getAssigneeBadgeTooltipContent } from "./assignee-badge"
+export type { AssigneeInfo, AssigneeBadgeProps } from "./assignee-badge"
+export { 
+  AssigneeDropdown, 
+  getMemberDisplayText, 
+  getAssignmentUserId, 
+  shouldShowUnassignOption 
+} from "./assignee-dropdown"
+export type { OrganizationMember, AssigneeDropdownProps } from "./assignee-dropdown"
+export { 
+  AssigneeFilter, 
+  filterQuestionsByAssignee,
+  ASSIGNEE_FILTER_OPTIONS 
+} from "./assignee-filter"
+export type { AssigneeFilterType, AssigneeFilterProps } from "./assignee-filter"
+
 // Commented out components (available if needed)
 // export { IndexSelector } from "./index-selector" 

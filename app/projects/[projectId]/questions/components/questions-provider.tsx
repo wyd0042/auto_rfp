@@ -5,6 +5,8 @@ import { toast } from "@/components/ui/use-toast"
 import { RfpDocument, AnswerSource } from "@/types/api"
 import { useMultiStepResponse } from "@/hooks/use-multi-step-response"
 import { appendSourceContent } from "@/lib/utils/source-utils"
+import { OrganizationMember } from "./assignee-dropdown"
+import { AssigneeFilterType, filterQuestionsByAssignee } from "./assignee-filter"
 
 // Interfaces
 interface AnswerData {
@@ -25,6 +27,11 @@ interface QuestionsContextType {
   setSelectedQuestion: (id: string | null) => void;
   activeTab: string;
   setActiveTab: (tab: string) => void;
+  
+  // Assignee filter state
+  assigneeFilter: AssigneeFilterType;
+  setAssigneeFilter: (filter: AssigneeFilterType) => void;
+  currentUserId: string | null;
   
   // Data state
   isLoading: boolean;
@@ -73,6 +80,11 @@ interface QuestionsContextType {
   multiStepSources: any[];
   resetMultiStepResponse: () => void;
   
+  // Assignment state
+  organizationMembers: OrganizationMember[];
+  isLoadingMembers: boolean;
+  canAssign: boolean;
+  
   // Action handlers
   handleAnswerChange: (questionId: string, value: string) => void;
   handleGenerateAnswer: (questionId: string) => Promise<void>;
@@ -83,10 +95,12 @@ interface QuestionsContextType {
   handleUseContent: (source: AnswerSource) => void;
   handleAcceptMultiStepResponse: (response: string, sources: any[]) => void;
   handleCloseMultiStepDialog: () => void;
+  handleAssignQuestion: (questionId: string, userId: string | null) => Promise<void>;
   
   // Utility functions
   getFilteredQuestions: (filterType?: string) => any[];
   getCounts: () => { all: number; answered: number; unanswered: number };
+  getAssigneeCounts: () => { all: number; me: number; unassigned: number };
   getSelectedQuestionData: () => any;
   refreshQuestions: () => Promise<void>;
 }
@@ -111,6 +125,10 @@ export function QuestionsProvider({ children, projectId }: QuestionsProviderProp
   const [showAIPanel, setShowAIPanel] = useState(false);
   const [selectedQuestion, setSelectedQuestion] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("all");
+  
+  // Assignee filter state
+  const [assigneeFilter, setAssigneeFilter] = useState<AssigneeFilterType>('all');
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   
   // Data state
   const [isLoading, setIsLoading] = useState(true);
@@ -140,6 +158,11 @@ export function QuestionsProvider({ children, projectId }: QuestionsProviderProp
   const [multiStepDialogOpen, setMultiStepDialogOpen] = useState(false);
   const [currentQuestionForMultiStep, setCurrentQuestionForMultiStep] = useState<string | null>(null);
   const [currentQuestionText, setCurrentQuestionText] = useState<string>("");
+  
+  // Assignment state
+  const [organizationMembers, setOrganizationMembers] = useState<OrganizationMember[]>([]);
+  const [isLoadingMembers, setIsLoadingMembers] = useState(false);
+  const [canAssign, setCanAssign] = useState(false);
   
   // Use the multi-step response hook
   const {
@@ -260,6 +283,75 @@ export function QuestionsProvider({ children, projectId }: QuestionsProviderProp
       console.error("Error in parallel loading:", error);
     });
   }, [projectId]);
+
+  // Fetch organization members and user role when project is loaded
+  useEffect(() => {
+    if (!project?.organizationId) {
+      return;
+    }
+
+    const fetchOrganizationMembers = async () => {
+      setIsLoadingMembers(true);
+      try {
+        const response = await fetch(`/api/organizations/${project.organizationId}/members`);
+        if (response.ok) {
+          const members = await response.json();
+          // Map to OrganizationMember format
+          const mappedMembers: OrganizationMember[] = members.map((member: any) => ({
+            userId: member.userId,
+            name: member.user?.name || null,
+            email: member.user?.email || member.email || '',
+            role: member.role || 'member',
+          }));
+          setOrganizationMembers(mappedMembers);
+        } else {
+          console.error("Failed to fetch organization members");
+          setOrganizationMembers([]);
+        }
+      } catch (error) {
+        console.error("Error fetching organization members:", error);
+        setOrganizationMembers([]);
+      } finally {
+        setIsLoadingMembers(false);
+      }
+    };
+
+    const fetchUserRole = async () => {
+      try {
+        const response = await fetch(`/api/organizations/${project.organizationId}/user-role`);
+        if (response.ok) {
+          const data = await response.json();
+          // Admin and owner can assign questions
+          const userRole = data.role;
+          setCanAssign(userRole === 'admin' || userRole === 'owner');
+        } else {
+          setCanAssign(false);
+        }
+      } catch (error) {
+        console.error("Error fetching user role:", error);
+        setCanAssign(false);
+      }
+    };
+
+    const fetchCurrentUser = async () => {
+      try {
+        const response = await fetch(`/api/me?organizationId=${project.organizationId}`);
+        if (response.ok) {
+          const data = await response.json();
+          setCurrentUserId(data.id);
+        } else {
+          setCurrentUserId(null);
+        }
+      } catch (error) {
+        console.error("Error fetching current user:", error);
+        setCurrentUserId(null);
+      }
+    };
+
+    Promise.all([fetchOrganizationMembers(), fetchUserRole(), fetchCurrentUser()]).catch(error => {
+      console.error("Error fetching organization data:", error);
+    });
+  }, [project?.organizationId]);
 
   // Handle answer changes
   const handleAnswerChange = (questionId: string, value: string) => {
@@ -393,6 +485,47 @@ export function QuestionsProvider({ children, projectId }: QuestionsProviderProp
     setMultiStepDialogOpen(false);
     setCurrentQuestionForMultiStep(null);
     resetMultiStepResponse();
+  };
+
+  // Handle question assignment
+  const handleAssignQuestion = async (questionId: string, userId: string | null) => {
+    if (!projectId) return;
+
+    try {
+      const response = await fetch(`/api/questions/${projectId}/assign`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          questionId,
+          assigneeId: userId,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(errorData.error || 'Failed to assign question');
+      }
+
+      // Refresh questions to get updated assignee data
+      await refreshQuestions();
+
+      toast({
+        title: userId ? "Question Assigned" : "Question Unassigned",
+        description: userId 
+          ? "The question has been assigned successfully."
+          : "The question has been unassigned.",
+      });
+    } catch (error) {
+      console.error("Error assigning question:", error);
+      toast({
+        title: "Assignment Error",
+        description: error instanceof Error ? error.message : "Failed to assign question. Please try again.",
+        variant: "destructive",
+      });
+      throw error; // Re-throw to let the dropdown handle the error state
+    }
   };
 
   // Save a single answer
@@ -559,6 +692,7 @@ export function QuestionsProvider({ children, projectId }: QuestionsProviderProp
       }));
     });
     
+    // First apply status filter
     let statusFiltered = allQuestions;
     
     if (filterType === "answered") {
@@ -571,10 +705,14 @@ export function QuestionsProvider({ children, projectId }: QuestionsProviderProp
       );
     }
     
-    if (!searchQuery) return statusFiltered;
+    // Then apply assignee filter
+    const assigneeFiltered = filterQuestionsByAssignee(statusFiltered, assigneeFilter, currentUserId);
+    
+    // Finally apply search query filter
+    if (!searchQuery) return assigneeFiltered;
     
     const query = searchQuery.toLowerCase();
-    return statusFiltered.filter(q => 
+    return assigneeFiltered.filter(q => 
       q.question.toLowerCase().includes(query) || 
       q.sectionTitle.toLowerCase().includes(query)
     );
@@ -591,6 +729,23 @@ export function QuestionsProvider({ children, projectId }: QuestionsProviderProp
       all: allQuestions.length,
       answered: answeredCount,
       unanswered: allQuestions.length - answeredCount
+    };
+  };
+
+  // Count questions by assignee filter
+  const getAssigneeCounts = () => {
+    if (!rfpDocument) return { all: 0, me: 0, unassigned: 0 };
+    
+    const allQuestions = rfpDocument.sections.flatMap(s => s.questions);
+    const myCount = currentUserId 
+      ? allQuestions.filter(q => q.assignee?.id === currentUserId).length 
+      : 0;
+    const unassignedCount = allQuestions.filter(q => !q.assignee).length;
+    
+    return {
+      all: allQuestions.length,
+      me: myCount,
+      unassigned: unassignedCount
     };
   };
 
@@ -712,6 +867,11 @@ export function QuestionsProvider({ children, projectId }: QuestionsProviderProp
     activeTab,
     setActiveTab,
     
+    // Assignee filter state
+    assigneeFilter,
+    setAssigneeFilter,
+    currentUserId,
+    
     // Data state
     isLoading,
     error,
@@ -759,6 +919,11 @@ export function QuestionsProvider({ children, projectId }: QuestionsProviderProp
     multiStepSources,
     resetMultiStepResponse,
     
+    // Assignment state
+    organizationMembers,
+    isLoadingMembers,
+    canAssign,
+    
     // Action handlers
     handleAnswerChange,
     handleGenerateAnswer,
@@ -769,10 +934,12 @@ export function QuestionsProvider({ children, projectId }: QuestionsProviderProp
     handleUseContent,
     handleAcceptMultiStepResponse,
     handleCloseMultiStepDialog,
+    handleAssignQuestion,
     
     // Utility functions
     getFilteredQuestions,
     getCounts,
+    getAssigneeCounts,
     getSelectedQuestionData,
     refreshQuestions,
   };
