@@ -176,19 +176,34 @@ export const projectService = {
     }
   },
 
-  async getQuestions(projectId: string) {
+  async getQuestions(projectId: string, options?: { assignee?: string | null }) {
     console.log("In getQuestions, projectId", projectId);
     console.log(`Fetching questions for project ${projectId}`);
     
     try {
+      // Build the where clause with optional assignee filter
+      const whereClause: { projectId: string; assignedTo?: string | null } = {
+        projectId,
+      };
+      
+      // Apply assignee filter if provided
+      if (options?.assignee !== undefined) {
+        whereClause.assignedTo = options.assignee;
+      }
+      
       const questions = await db.question.findMany({
-        where: {
-          projectId,
-        },
+        where: whereClause,
         include: {
           answer: {
             include: {
               sources: true,
+            },
+          },
+          assignee: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
             },
           },
         },
@@ -238,12 +253,20 @@ export const projectService = {
           textContent: source.textContent || null,
         })) || [];
         
+        // Map assignee details
+        const assignee = question.assignee ? {
+          id: question.assignee.id,
+          name: question.assignee.name,
+          email: question.assignee.email,
+        } : null;
+        
         acc[topic].push({
           id: question.id,
           question: question.text,
           answer: question.answer?.text,
           sources: sources.length > 0 ? sources : undefined,
           referenceId: question.referenceId ?? undefined,
+          assignee,
         });
         
         return acc;
